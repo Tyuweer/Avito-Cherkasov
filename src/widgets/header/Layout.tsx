@@ -1,14 +1,31 @@
 // src/widgets/header/Layout.tsx
 import { Link } from 'react-router-dom';
 import { useStore } from '../../app/providers/StoreProvider';
+import { useAuthStore } from '../../app/hooks/useAuthStore';
 import { observer } from 'mobx-react-lite';
+import { useState } from 'react';
+import { AuthModal } from '../../features/auth/ui/AuthModal';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export const Layout = observer(({ children }: LayoutProps) => {
-  const { currentUser, login, logout } = useStore();
+  const { currentUser, logout } = useStore();
+  const authStore = useAuthStore();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const handleLoginClick = () => {
+    setIsAuthModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsAuthModalOpen(false);
+    authStore.clearError();
+  };
+
+  // Use auth store user if available, fallback to legacy currentUser
+  const displayUser = authStore.user || currentUser;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -19,15 +36,15 @@ export const Layout = observer(({ children }: LayoutProps) => {
           </Link>
 
           <div className="flex items-center gap-4">
-            {currentUser ? (
+            {displayUser ? (
               <div className="flex items-center gap-4">
                  <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity bg-gray-50 py-1.5 pl-1.5 pr-4 rounded-full border border-gray-100">
                   <div className="w-7 h-7 rounded-full bg-blue-100 text-[#00AAFF] flex items-center justify-center text-xs font-bold">
-                    {currentUser.username.charAt(0)}
+                    {displayUser.username.charAt(0)}
                   </div>
-                  <span className="text-sm font-medium text-gray-900">{currentUser.username}</span>
+                  <span className="text-sm font-medium text-gray-900">{displayUser.username}</span>
                 </Link>
-                <button 
+                <button
                   onClick={() => logout()}
                   className="text-xs text-gray-400 hover:text-red-500 font-medium"
                 >
@@ -35,8 +52,8 @@ export const Layout = observer(({ children }: LayoutProps) => {
                 </button>
               </div>
             ) : (
-              <button 
-                onClick={() => login()}
+              <button
+                onClick={handleLoginClick}
                 className="px-5 py-2 bg-[#00AAFF] text-white rounded-lg text-sm font-medium hover:bg-[#0095E0] transition-colors shadow-sm"
               >
                 Войти
@@ -55,6 +72,9 @@ export const Layout = observer(({ children }: LayoutProps) => {
           © 2026 Цепочка Обмена. MVP Хакатон.
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={handleCloseModal} />
     </div>
   );
 });

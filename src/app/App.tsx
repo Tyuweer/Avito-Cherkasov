@@ -8,6 +8,7 @@ import { HomePage } from '../pages/home-page/HomePage';
 import { ProfilePage } from '../pages/profile-page/ProfilePage';
 import { ExchangePage } from '../pages/exchange-page/ExchangePage';
 import { ItemPage } from '../pages/item-page/ItemPage';
+import { UserProfilePage } from '../pages/user-profile-page/UserProfilePage';
 
 const AppContent = () => {
   const store = useStore();
@@ -31,6 +32,7 @@ const AppContent = () => {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/exchange/:dealId" element={<ExchangePage />} />
         <Route path="/item/:id" element={<ItemPage />} />
+        <Route path="/user/:id" element={<UserProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

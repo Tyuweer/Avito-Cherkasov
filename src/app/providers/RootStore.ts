@@ -2,22 +2,25 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import type { IUser, IExchangeDeal, IChainLink } from '../../shared/api/types';
 import { DealStatus } from '../../shared/api/types';
+import { AuthStore } from '../hooks/stores/AuthStore';
 
 class RootStore {
+  auth: AuthStore;
   currentUser: IUser | null = null;
   activeDeals: IExchangeDeal[] = [];
   isLoading = false;
 
   constructor() {
     makeAutoObservable(this);
+    this.auth = new AuthStore();
   }
 
-  // Простой мок-логин без аргументов
+  // Простой мок-логин без аргументов (для быстрой демонстрации)
   login = async () => {
     this.isLoading = true;
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       runInAction(() => {
         this.currentUser = {
           id: 1,
@@ -28,13 +31,14 @@ class RootStore {
         };
         this.isLoading = false;
       });
-    } catch (error) {
+    } catch {
       runInAction(() => { this.isLoading = false; });
     }
   };
 
   logout = () => {
     this.currentUser = null;
+    this.auth.logout();
   };
 
   fetchCurrentUser = async () => {
