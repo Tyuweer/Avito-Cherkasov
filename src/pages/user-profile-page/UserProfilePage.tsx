@@ -1,46 +1,9 @@
 // src/pages/user-profile-page/UserProfilePage.tsx
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import type { IUser, IItem } from '../../shared/api/types'; // Используем type для интерфейсов
-
-// Моковые данные (пока нет API)
-const MOCK_USER: IUser = {
-  id: 2,
-  username: 'Maxim_G',
-  rating: 4.2,
-  declineCount: 1,
-  avatarUrl: undefined,
-  pvzAddress: 'ПВЗ №45, пр. Мира 5',
-};
-
-const MOCK_ITEMS: IItem[] = [
-  {
-    id: 102,
-    title: 'PlayStation 5',
-    description: 'В отличном состоянии, 2 геймпада',
-    imageUrl: 'https://placehold.co/400x300/blue/white?text=PS5',
-    category: 'Электроника',
-    quantity: 1,
-    unit: 'шт',
-    authorId: 2,
-    holderId: 1, // Право передано Саше (id: 1)
-    isLocked: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 105,
-    title: 'Набор гантелей',
-    description: '20 кг',
-    imageUrl: 'https://placehold.co/400x300/gray/white?text=Dumbbells',
-    category: 'Спорт',
-    quantity: 1,
-    unit: 'шт',
-    authorId: 2,
-    holderId: 2,
-    isLocked: false,
-    createdAt: new Date().toISOString(),
-  },
-];
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import type { IUser, IItem } from '../../shared/api/types';
+import { authApi } from '../../shared/api/authApi';
+import { getItemsByUserId } from '../../entities/item/api/itemApi';
 
 export const UserProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,17 +13,29 @@ export const UserProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Имитация загрузки данных
-    const timer = setTimeout(() => {
-      // В реальности здесь fetch(`/api/v1/users/${id}`)
-      if (id) {
-        setUser({ ...MOCK_USER, id: Number(id) });
-        setItems(MOCK_ITEMS);
+    const loadUserData = async () => {
+      setLoading(true);
+      try {
+        if (id) {
+          const userId = Number(id);
+          const userData = await authApi.getUserById(userId);
+          if (userData) {
+            setUser(userData);
+            const userItems = getItemsByUserId(userId);
+            setItems(userItems);
+          } else {
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load user data:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 500);
+    };
 
-    return () => clearTimeout(timer);
+    loadUserData();
   }, [id]);
 
   if (loading) {
@@ -73,11 +48,11 @@ export const UserProfilePage: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <h2 className="text-2xl font-bold text-slate-800">Пользователь не найден</h2>
-        <button 
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <h2 className="text-2xl font-bold text-slate-800 mb-4">Пользователь не найден</h2>
+        <button
           onClick={() => navigate(-1)}
-          className="mt-4 px-6 py-2 bg-slate-200 rounded-lg hover:bg-slate-300 transition"
+          className="px-6 py-3 bg-[#00AAFF] text-white rounded-lg hover:bg-[#0095E0] transition font-medium"
         >
           Назад
         </button>
@@ -87,19 +62,19 @@ export const UserProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-8">
-      {/* Шапка профиля */}
+      {/* Profile Header */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 flex flex-col md:flex-row items-center md:items-start gap-6">
-        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg flex-shrink-0">
+        <Link to={`/user/${user.id}`} className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg flex-shrink-0 hover:opacity-90 transition-opacity">
           {user.avatarUrl ? (
             <img src={user.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
           ) : (
             user.username.charAt(0).toUpperCase()
           )}
-        </div>
-        
+        </Link>
+
         <div className="flex-1 text-center md:text-left">
           <h1 className="text-3xl font-bold text-slate-800 mb-2">{user.username}</h1>
-          
+
           <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-500 mb-4">
             <span className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full font-medium">
               ★ {user.rating} Рейтинг
@@ -113,13 +88,13 @@ export const UserProfilePage: React.FC = () => {
               </span>
             )}
           </div>
-          
+
           <p className="text-slate-600 max-w-2xl">
             Участник системы многостороннего обмена. Ценит честность и пунктуальность.
           </p>
         </div>
 
-        <button 
+        <button
           onClick={() => navigate(-1)}
           className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition self-start"
         >
@@ -127,12 +102,12 @@ export const UserProfilePage: React.FC = () => {
         </button>
       </div>
 
-      {/* Товары пользователя */}
+      {/* User's Items */}
       <div>
         <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <span>📦</span> Товары пользователя
+          <span>📦</span> Товары пользователя ({items.length})
         </h2>
-        
+
         {items.length === 0 ? (
           <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
             <p className="text-slate-500">У пользователя пока нет товаров для обмена</p>
@@ -140,29 +115,28 @@ export const UserProfilePage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {items.map((item) => (
-              <div 
-                key={item.id} 
+              <div
+                key={item.id}
                 className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow group"
               >
                 <div className="aspect-video bg-slate-100 relative overflow-hidden">
-                  <img 
-                    src={item.imageUrl} 
-                    alt={item.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   {item.isLocked && (
                     <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded font-bold shadow-sm">
                       В сделке
                     </div>
                   )}
-                  {/* Индикатор исключительного права */}
                   {item.holderId !== item.authorId && (
                     <div className="absolute top-2 left-2 bg-purple-500 text-white text-xs px-2 py-1 rounded font-bold shadow-sm flex items-center gap-1">
                       <span>🔑</span> Передано
                     </div>
                   )}
                 </div>
-                
+
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-slate-800 truncate pr-2">{item.title}</h3>
@@ -173,10 +147,34 @@ export const UserProfilePage: React.FC = () => {
                   <p className="text-sm text-slate-500 line-clamp-2 mb-3 h-10">
                     {item.description}
                   </p>
+
+                  {item.wishes && item.wishes.length > 0 && (
+                    <div className="mb-3 pt-3 border-t border-slate-100">
+                      <p className="text-xs text-slate-400 mb-2">Хочет взамен:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {item.wishes.slice(0, 3).map((wish, i) => (
+                          <span key={i} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                            {wish}
+                          </span>
+                        ))}
+                        {item.wishes.length > 3 && (
+                          <span className="text-xs text-slate-400">+{item.wishes.length - 3}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100">
                     <span>{item.category}</span>
                     <span>ID: {item.id}</span>
                   </div>
+
+                  <Link
+                    to={`/item/${item.id}`}
+                    className="mt-3 block w-full text-center py-2 bg-slate-50 hover:bg-[#00AAFF] hover:text-white text-slate-600 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Подробнее
+                  </Link>
                 </div>
               </div>
             ))}

@@ -1,6 +1,6 @@
 // src/pages/profile-page/ProfilePage.tsx
 import { useState, useEffect } from "react";
-import { useStore } from "../../app/providers/StoreProvider";
+import { useAuthStore } from "../../app/hooks/useAuthStore";
 import { ItemCard } from "../../entities/item/ui/ItemCard";
 import { itemApi } from "../../entities/item/api/itemApi";
 import type { IItem } from "../../shared/api/types";
@@ -10,11 +10,14 @@ import { CreateItemForm } from "../../features/create-item/ui/CreateItemForm";
 type Tab = "items" | "wishes" | "deals" | "settings";
 
 export const ProfilePage = () => {
-  const { currentUser } = useStore();
+  const authStore = useAuthStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("items");
   const [myItems, setMyItems] = useState<IItem[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Use authStore user for profile data
+  const currentUser = authStore.user;
 
   // Мок пожеланий
   const [myWishes, setMyWishes] = useState<string[]>([
@@ -26,15 +29,15 @@ export const ProfilePage = () => {
     itemApi.getMyItems().then((items) => {
       // ИСПРАВЛЕНИЕ: Фильтруем по holderId (кто распоряжается), а не по authorId (кто создал)
       // Теперь тут будут и свои товары, и те, на которые вам передали право (Велосипед)
-      setMyItems(items.filter((i) => i.holderId === 1));
+      setMyItems(items.filter((i) => i.holderId === (currentUser?.id ?? 1)));
     });
-  }, []);
+  }, [currentUser?.id]);
 
   const handleItemCreated = () => {
     setIsCreateModalOpen(false);
     itemApi
       .getMyItems()
-      .then((items) => setMyItems(items.filter((i) => i.holderId === 1))); // Тут тоже меняем
+      .then((items) => setMyItems(items.filter((i) => i.holderId === (currentUser?.id ?? 1)))); // Тут тоже меняем
   };
 
   const handleAddWish = () => {
@@ -44,8 +47,11 @@ export const ProfilePage = () => {
     }
   };
 
-  if (!currentUser)
+  // Redirect to home if not authenticated
+  if (!currentUser) {
+    navigate("/");
     return <div className="p-10 text-center">Загрузка профиля...</div>;
+  }
 
   return (
     <div className="w-full space-y-6 pb-20">

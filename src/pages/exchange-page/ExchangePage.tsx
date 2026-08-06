@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { ChainVisualizer } from '../../widgets/chain-visualizer/ui/ChainVisualizer';
 import type { IExchangeDeal } from '../../shared/api/types';
-import { DealStatus, ChainLinkStatus } from '../../shared/api/types';
+import { DealStatus, ChainLinkStatus, LogisticsStatus } from '../../shared/api/types';
 import { mockUsers } from '../../entities/user/api/userApi';
 import { mockItems } from '../../entities/item/api/itemApi';
 
@@ -19,39 +19,43 @@ export const ExchangePage = () => {
         id: dealId || 'deal-101',
         status: DealStatus.CONFIRMING,
         deadline: '2026-08-11T23:59:59Z',
+        initiatorId: 3,
         chain: [
           // 1. Саша (Max_Gamer в моке пользователей, но пусть будет Саша по логике)
           // Саша имеет Апельсин, хочет Велосипед. Отдает Апельсин Мне.
           {
-            userId: 3, 
+            userId: 3,
             user: { ...mockUsers[3], username: 'Sasha_Owner' }, // Переименуем для наглядности
             status: ChainLinkStatus.ACCEPTED,
             givingItemId: 111, // Апельсин
-            givingItem: { 
-                id: 111, title: 'Апельсин', description: 'Сладкий', imageUrl: 'https://placehold.co/100/orange/white?text=Orange', 
-                category: 'Еда', quantity: 1, unit: 'кг', authorId: 3, holderId: 3, isLocked: false, createdAt: '' 
+            givingItem: {
+                id: 111, title: 'Апельсин', description: 'Сладкий', imageUrl: 'https://placehold.co/100/orange/white?text=Orange',
+                category: 'Еда', quantity: 1, unit: 'кг', authorId: 3, holderId: 3, isLocked: false, createdAt: ''
             },
+            logisticsStatus: LogisticsStatus.NONE,
           },
           // 2. Я (Alex_Dev)
           // Я имею Лодку, хочу Апельсин. Отдаю Лодку Максиму.
           {
-            userId: 1, 
+            userId: 1,
             user: mockUsers[1],
             status: ChainLinkStatus.PENDING,
             givingItemId: 112, // Лодка
-            givingItem: { 
-                id: 112, title: 'Лодка ПВХ', description: 'Надувная', imageUrl: 'https://placehold.co/100/blue/white?text=Boat', 
-                category: 'Спорт', quantity: 1, unit: 'шт', authorId: 1, holderId: 1, isLocked: false, createdAt: '' 
+            givingItem: {
+                id: 112, title: 'Лодка ПВХ', description: 'Надувная', imageUrl: 'https://placehold.co/100/blue/white?text=Boat',
+                category: 'Спорт', quantity: 1, unit: 'шт', authorId: 1, holderId: 1, isLocked: false, createdAt: ''
             },
+            logisticsStatus: LogisticsStatus.NONE,
           },
           // 3. Максим (Dima_Biker в моке, пусть будет Максим)
           // Максим имеет Велосипед, хочет Лодку. Отдает Велосипед Саше.
           {
-            userId: 2, 
+            userId: 2,
             user: { ...mockUsers[2], username: 'Max_Biker' },
             status: ChainLinkStatus.WAITING,
             givingItemId: 101, // Велосипед
             givingItem: mockItems.find(i => i.id === 101) || mockItems[0],
+            logisticsStatus: LogisticsStatus.NONE,
           }
         ]
       };
@@ -60,27 +64,6 @@ export const ExchangePage = () => {
 
     return () => clearTimeout(timer);
   }, [dealId]);
-// ...
-
-  const handleConfirm = () => {
-    if (!deal) return;
-    const newDeal = { ...deal };
-    const myLinkIndex = newDeal.chain.findIndex(l => l.userId === currentUserId);
-    
-    if (myLinkIndex !== -1) {
-      newDeal.chain[myLinkIndex].status = ChainLinkStatus.ACCEPTED;
-      if (myLinkIndex + 1 < newDeal.chain.length) {
-        newDeal.chain[myLinkIndex + 1].status = ChainLinkStatus.PENDING;
-      }
-      setDeal(newDeal);
-    }
-  };
-
-  const handleDecline = () => {
-    if (confirm('Вы уверены? Цепочка распадется.')) {
-      alert('Сделка отменена.');
-    }
-  };
 
   if (!deal) {
     return (
@@ -99,11 +82,9 @@ export const ExchangePage = () => {
         <span className="text-gray-900 font-medium">Сделка #{deal.id}</span>
       </div>
 
-      <ChainVisualizer 
-        deal={deal} 
+      <ChainVisualizer
+        deal={deal}
         currentUserId={currentUserId}
-        onConfirm={handleConfirm}
-        onDecline={handleDecline}
       />
 
       <div className="bg-white p-6 rounded-xl border border-gray-200 opacity-60 grayscale pointer-events-none relative overflow-hidden">

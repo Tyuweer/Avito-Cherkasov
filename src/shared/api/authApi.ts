@@ -17,6 +17,35 @@ interface AuthResponse {
   user: IUser;
 }
 
+// Mock users database with unique credentials, items and wishes
+export const mockUsersDb: Record<string, { password: string; email: string; user: IUser }> = {
+  alex: {
+    password: '123456',
+    email: 'alex@example.com',
+    user: { id: 1, username: 'Alex_Dev', rating: 4.8, declineCount: 1, pvzAddress: 'ПВЗ №123, ул. Ленина 10' },
+  },
+  dima: {
+    password: '123456',
+    email: 'dima@example.com',
+    user: { id: 2, username: 'Dima_Biker', rating: 4.9, declineCount: 0, pvzAddress: 'ПВЗ №45, пр. Мира 5' },
+  },
+  max: {
+    password: '123456',
+    email: 'max@example.com',
+    user: { id: 3, username: 'Max_Gamer', rating: 4.5, declineCount: 2, pvzAddress: 'ПВЗ №78, ул. Гагарина 15' },
+  },
+  photo: {
+    password: '123456',
+    email: 'photo@example.com',
+    user: { id: 4, username: 'Photo_Master', rating: 5.0, declineCount: 0, pvzAddress: 'ПВЗ №12, ул. Пушкина 8' },
+  },
+  music: {
+    password: '123456',
+    email: 'music@example.com',
+    user: { id: 5, username: 'Music_Lover', rating: 4.7, declineCount: 0, pvzAddress: 'ПВЗ №34, ул. Лермонтова 22' },
+  },
+};
+
 // Mock JWT token generator
 const generateMockToken = (username: string): string => {
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
@@ -45,16 +74,21 @@ export const authApi = {
       throw new Error('Username and password are required');
     }
 
+    // Check against mock database (case-insensitive)
+    const lowerUsername = username.toLowerCase();
+    const userRecord = mockUsersDb[lowerUsername];
+
+    if (!userRecord) {
+      throw new Error('User not found. Please register first.');
+    }
+
+    if (userRecord.password !== password) {
+      throw new Error('Invalid password');
+    }
+
     // Generate mock response
     const token = generateMockToken(username);
-    const user: IUser = {
-      id: Date.now(),
-      username,
-      rating: 5.0,
-      declineCount: 0,
-      avatarUrl: undefined,
-      pvzAddress: undefined,
-    };
+    const user: IUser = { ...userRecord.user };
 
     return {
       data: { token, user },
@@ -80,9 +114,14 @@ export const authApi = {
       throw new Error('Invalid email format');
     }
 
-    // Generate mock response
-    const token = generateMockToken(username);
-    const user: IUser = {
+    // Check if username already exists
+    const lowerUsername = username.toLowerCase();
+    if (mockUsersDb[lowerUsername]) {
+      throw new Error('Username already exists');
+    }
+
+    // Create new user
+    const newUser: IUser = {
       id: Date.now(),
       username,
       rating: 5.0,
@@ -91,10 +130,33 @@ export const authApi = {
       pvzAddress: undefined,
     };
 
+    // Add to mock database (in-memory only, will reset on page reload)
+    mockUsersDb[lowerUsername] = {
+      password,
+      email,
+      user: newUser,
+    };
+
+    // Generate mock response
+    const token = generateMockToken(username);
+
     return {
-      data: { token, user },
+      data: { token, user: newUser },
       message: 'Registration successful',
     };
+  },
+
+  /**
+   * Get user by ID (for profile pages)
+   */
+  getUserById: async (id: number): Promise<IUser | null> => {
+    await mockDelay(100);
+    for (const record of Object.values(mockUsersDb)) {
+      if (record.user.id === id) {
+        return record.user;
+      }
+    }
+    return null;
   },
 };
 

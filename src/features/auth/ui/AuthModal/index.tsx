@@ -30,7 +30,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </svg>
         </button>
 
-        <AuthForm />
+        <AuthForm onSuccess={onClose} />
       </div>
     </div>
   );

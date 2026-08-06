@@ -17,7 +17,11 @@ interface FormErrors {
   email?: string;
 }
 
-export const AuthForm: React.FC = observer(() => {
+interface AuthFormProps {
+  onSuccess?: () => void;
+}
+
+export const AuthForm: React.FC<AuthFormProps> = observer(({ onSuccess }) => {
   const authStore = useAuthStore();
   const [mode, setMode] = useState<AuthMode>('login');
   const [formData, setFormData] = useState<FormData>({
@@ -75,6 +79,10 @@ export const AuthForm: React.FC = observer(() => {
 
     if (success) {
       setFormData({ username: '', password: '', email: '' });
+      // Close modal and redirect to home page after successful auth
+      if (onSuccess) {
+        onSuccess();
+      }
     }
   };
 

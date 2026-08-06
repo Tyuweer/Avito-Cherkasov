@@ -1,6 +1,5 @@
 // src/widgets/header/Layout.tsx
-import { Link } from 'react-router-dom';
-import { useStore } from '../../app/providers/StoreProvider';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../app/hooks/useAuthStore';
 import { observer } from 'mobx-react-lite';
 import { useState } from 'react';
@@ -11,8 +10,8 @@ interface LayoutProps {
 }
 
 export const Layout = observer(({ children }: LayoutProps) => {
-  const { currentUser, logout } = useStore();
   const authStore = useAuthStore();
+  const navigate = useNavigate();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const handleLoginClick = () => {
@@ -24,8 +23,13 @@ export const Layout = observer(({ children }: LayoutProps) => {
     authStore.clearError();
   };
 
-  // Use auth store user if available, fallback to legacy currentUser
-  const displayUser = authStore.user || currentUser;
+  const handleLogout = () => {
+    authStore.logout();
+    navigate('/');
+  };
+
+  // Use authStore user for display
+  const displayUser = authStore.user;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -45,7 +49,7 @@ export const Layout = observer(({ children }: LayoutProps) => {
                   <span className="text-sm font-medium text-gray-900">{displayUser.username}</span>
                 </Link>
                 <button
-                  onClick={() => logout()}
+                  onClick={handleLogout}
                   className="text-xs text-gray-400 hover:text-red-500 font-medium"
                 >
                   Выйти
