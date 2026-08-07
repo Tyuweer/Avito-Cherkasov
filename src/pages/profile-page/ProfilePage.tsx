@@ -4,10 +4,9 @@ import { useAuthStore } from "../../app/hooks/useAuthStore";
 import { ItemCard } from "../../entities/item/ui/ItemCard";
 import { itemApi, mockItems } from "../../entities/item/api/itemApi";
 import type { IItem } from "../../shared/api/types";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { CreateItemForm } from "../../features/create-item/ui/CreateItemForm";
 import { AuthModal } from "../../features/auth/ui/AuthModal";
-import { mockUsers } from "../../entities/user/api/userApi";
 
 type Tab = "items" | "wishes" | "deals" | "settings";
 
@@ -77,15 +76,14 @@ export const ProfilePage = () => {
       return;
     }
 
-    if (confirm("Вы уверены, что хотите удалить этот предмет?")) {
-      // Remove from mockItems
-      const index = mockItems.findIndex(i => i.id === itemId);
-      if (index !== -1) {
-        mockItems.splice(index, 1);
-        // Update state
-        setMyItems(myItems.filter(i => i.id !== itemId));
-      }
+    // Remove from mockItems
+    const index = mockItems.findIndex(i => i.id === itemId);
+    if (index !== -1) {
+      mockItems.splice(index, 1);
+      // Update state
+      setMyItems(myItems.filter(i => i.id !== itemId));
     }
+    setIsDeleteModalOpen({ open: false });
   };
 
   const handleAddWish = (wishText: string) => {
@@ -151,8 +149,12 @@ export const ProfilePage = () => {
     <div className="w-full space-y-6 pb-20">
       {/* Шапка профиля */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row items-center sm:items-start gap-6">
-        <div className="w-24 h-24 rounded-full bg-blue-100 text-[#00AAFF] flex items-center justify-center text-3xl font-bold shrink-0 shadow-inner">
-          {currentUser.username.charAt(0)}
+        <div className="w-24 h-24 rounded-full bg-blue-100 text-[#00AAFF] flex items-center justify-center text-3xl font-bold shrink-0 shadow-inner overflow-hidden">
+          {currentUser.avatarUrl ? (
+            <img src={currentUser.avatarUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            currentUser.username.charAt(0)
+          )}
         </div>
         <div className="text-center sm:text-left flex-1">
           <h1 className="text-2xl font-bold text-gray-900">
@@ -217,7 +219,6 @@ export const ProfilePage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {myItems.map((item) => {
                   const originalOwner = item.authorId !== item.holderId;
-                  const ownerUser = mockUsers[item.authorId];
                   return (
                     <div key={item.id} className="relative group flex flex-col">
                       {originalOwner && (
@@ -233,7 +234,6 @@ export const ProfilePage = () => {
                       >
                         <div className="relative">
                           <ItemCard item={item} />
-                          {/* Show delete button only for own items (not exclusive rights) and not locked */}
                           {!originalOwner && !item.isLocked && (
                             <button
                               onClick={(e) => {
@@ -247,26 +247,6 @@ export const ProfilePage = () => {
                             </button>
                           )}
                         </div>
-                        {originalOwner && (
-                          <div className="px-4 pb-3 pt-1">
-                            <div className="text-[10px] text-gray-400 uppercase font-semibold mb-1">
-                              Получено от:
-                            </div>
-                            {ownerUser ? (
-                              <Link
-                                to={`/user/${ownerUser.id}`}
-                                className="text-xs text-purple-600 hover:text-purple-800 hover:underline font-medium inline-flex items-center gap-1"
-                              >
-                                <span>{ownerUser.username}</span>
-                                <span className="text-[10px]">↗</span>
-                              </Link>
-                            ) : (
-                              <div className="text-xs text-gray-700 font-medium">
-                                Пользователь #{item.authorId}
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   );
@@ -440,6 +420,28 @@ export const ProfilePage = () => {
                     <p className="text-xs text-gray-500 mt-1">Оставьте пустым, чтобы использовать инициалы</p>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setAvatarUrl(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    };
+                    input.click();
+                  }}
+                  className="mt-2 text-sm text-[#00AAFF] hover:text-[#0095E0] font-medium"
+                >
+                  📷 Загрузить с устройства
+                </button>
               </div>
 
               <div className="pt-4 border-t border-gray-200">

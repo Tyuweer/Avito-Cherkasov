@@ -12,8 +12,12 @@ export const UserBadge = ({ user, size = 'md' }: UserBadgeProps) => {
 
   return (
     <div className={`flex items-center ${sizeClasses}`}>
-      <div className={`${avatarSize} rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600 border border-gray-200`}>
-        {user.username.charAt(0)}
+      <div className={`${avatarSize} rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600 border border-gray-200 overflow-hidden`}>
+        {user.avatarUrl ? (
+          <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          user.username.charAt(0)
+        )}
       </div>
       <div className="flex flex-col leading-none">
         <span className="font-medium text-gray-900">{user.username}</span>

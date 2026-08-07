@@ -43,8 +43,12 @@ export const Layout = observer(({ children }: LayoutProps) => {
             {displayUser ? (
               <div className="flex items-center gap-4">
                  <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity bg-gray-50 py-1.5 pl-1.5 pr-4 rounded-full border border-gray-100">
-                  <div className="w-7 h-7 rounded-full bg-blue-100 text-[#00AAFF] flex items-center justify-center text-xs font-bold">
-                    {displayUser.username.charAt(0)}
+                  <div className="w-7 h-7 rounded-full bg-blue-100 text-[#00AAFF] flex items-center justify-center text-xs font-bold overflow-hidden">
+                    {displayUser.avatarUrl ? (
+                      <img src={displayUser.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      displayUser.username.charAt(0)
+                    )}
                   </div>
                   <span className="text-sm font-medium text-gray-900">{displayUser.username}</span>
                 </Link>
