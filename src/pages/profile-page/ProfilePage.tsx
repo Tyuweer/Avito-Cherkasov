@@ -6,7 +6,6 @@ import { itemApi, mockItems } from "../../entities/item/api/itemApi";
 import type { IItem } from "../../shared/api/types";
 import { useNavigate } from "react-router-dom";
 import { CreateItemForm } from "../../features/create-item/ui/CreateItemForm";
-import { AuthModal } from "../../features/auth/ui/AuthModal";
 import { SuccessSticker } from "../../shared/ui/SuccessSticker";
 
 type Tab = "items" | "wishes" | "deals" | "settings";
@@ -17,7 +16,6 @@ export const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("items");
   const [myItems, setMyItems] = useState<IItem[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isWishModalOpen, setIsWishModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<{ open: boolean; itemId?: number }>({ open: false });
   const [showSuccessSticker, setShowSuccessSticker] = useState(false);
@@ -133,10 +131,8 @@ export const ProfilePage = () => {
     );
 
     if (success) {
-      // Показываем красивый стикер успеха вместо текста
-      setSuccessMessage(avatarUrl && avatarUrl !== currentUser.avatarUrl
-        ? "Аватарка обновлена!"
-        : "Профиль успешно обновлен!");
+      // Показываем красивый стикер успеха вместо текста - всегда пишем "Профиль успешно обновлен"
+      setSuccessMessage("Профиль успешно обновлен!");
       setShowSuccessSticker(true);
       setOldPassword("");
       setNewPassword("");
@@ -590,11 +586,6 @@ export const ProfilePage = () => {
             </form>
           </div>
         </div>
-      )}
-
-      {/* Auth Modal for unauthenticated users */}
-      {isAuthModalOpen && (
-        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       )}
 
       {/* Delete Confirmation Modal */}

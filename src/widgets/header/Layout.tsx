@@ -1,9 +1,7 @@
 // src/widgets/header/Layout.tsx
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../app/hooks/useAuthStore';
 import { observer } from 'mobx-react-lite';
-import { useState } from 'react';
-import { AuthModal } from '../../features/auth/ui/AuthModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,21 +9,15 @@ interface LayoutProps {
 
 export const Layout = observer(({ children }: LayoutProps) => {
   const authStore = useAuthStore();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleLoginClick = () => {
-    setIsAuthModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsAuthModalOpen(false);
-    authStore.clearError();
-    // No reload needed - HomePage will react to auth state change automatically
+    navigate('/auth');
   };
 
   const handleLogout = () => {
     authStore.logout();
-    // No reload needed - HomePage will react to auth state change automatically
+    navigate('/auth');
   };
 
   // Use authStore user for display
@@ -80,9 +72,6 @@ export const Layout = observer(({ children }: LayoutProps) => {
           © 2026 Цепочка Обмена. MVP Хакатон.
         </div>
       </footer>
-
-      {/* Auth Modal */}
-      <AuthModal isOpen={isAuthModalOpen} onClose={handleCloseModal} />
     </div>
   );
 });

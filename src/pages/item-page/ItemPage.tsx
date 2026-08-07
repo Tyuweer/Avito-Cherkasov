@@ -8,7 +8,7 @@ import { UserBadge } from '../../entities/user/ui/UserBadge';
 import { JoinChainModal } from '../../features/join-chain/ui/JoinChainModal';
 import { useAuthStore } from '../../app/hooks/useAuthStore';
 import { getAvailableItemsForUser } from '../../entities/item/api/itemApi';
-import { AuthModal } from '../../features/auth/ui/AuthModal';
+import { SuccessSticker } from '../../shared/ui/SuccessSticker';
 
 export const ItemPage = () => {
   const { id } = useParams();
@@ -17,7 +17,8 @@ export const ItemPage = () => {
   const [item, setItem] = useState<IItem | null>(null);
   const [mainImage, setMainImage] = useState('');
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [showSticker, setShowSticker] = useState(false);
+  const [stickerMessage, setStickerMessage] = useState('');
 
   const currentUser = authStore.user;
   const isAuthenticated = authStore.isAuthenticated;
@@ -51,23 +52,25 @@ export const ItemPage = () => {
 
   const handleDirectExchange = () => {
     if (!isAuthenticated) {
-      setIsAuthModalOpen(true);
+      navigate('/auth', { state: { from: `/item/${id}` } });
       return;
     }
     if (hasDesiredItem) {
-        alert('Заявка на прямой обмен отправлена! Владелец получил уведомление.');
+      setStickerMessage('Заявка на прямой обмен отправлена! Владелец получил уведомление.');
+      setShowSticker(true);
     } else {
-        setIsJoinModalOpen(true);
+      setIsJoinModalOpen(true);
     }
   };
 
   const handleJoinChain = () => {
     if (!isAuthenticated) {
-      setIsAuthModalOpen(true);
+      navigate('/auth', { state: { from: `/item/${id}` } });
       return;
     }
     if (!hasItemsToExchange) {
-      alert('У вас нет товаров для обмена. Добавьте товар в профиле чтобы участвовать в цепочке.');
+      setStickerMessage('У вас нет товаров для обмена. Добавьте товар в профиле чтобы участвовать в цепочке.');
+      setShowSticker(true);
       return;
     }
     setIsJoinModalOpen(true);
@@ -226,14 +229,19 @@ export const ItemPage = () => {
             onClose={() => setIsJoinModalOpen(false)}
             onConfirm={() => {
                 setIsJoinModalOpen(false);
-                // Убрали alert, теперь показывается красивый стикер в самом модалке
+                setStickerMessage('Вы успешно вступили в цепочку!');
+                setShowSticker(true);
             }}
         />
       )}
 
-      {isAuthModalOpen && (
-        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-      )}
+      {/* Success Sticker for notifications */}
+      <SuccessSticker
+        message={stickerMessage}
+        isVisible={showSticker}
+        onClose={() => setShowSticker(false)}
+        duration={4000}
+      />
     </div>
   );
 };

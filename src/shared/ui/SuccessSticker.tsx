@@ -26,8 +26,8 @@ export const SuccessSticker: React.FC<SuccessStickerProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-[1000] animate-in slide-in-from-right duration-300">
-      <div className="bg-white rounded-xl shadow-lg p-4 border-l-4 border-green-500 flex items-center gap-3 max-w-sm">
+    <div className="fixed top-4 right-4 z-[1000] animate-in slide-in-from-right fade-out duration-500">
+      <div className="bg-white rounded-xl shadow-lg p-4 border-l-4 border-green-500 flex items-center gap-3 max-w-sm transition-opacity duration-500">
         {/* Иконка успеха */}
         <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-500 rounded-full flex items-center justify-center flex-shrink-0">
           <svg
