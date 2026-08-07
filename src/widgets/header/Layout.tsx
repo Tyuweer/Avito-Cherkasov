@@ -21,6 +21,10 @@ export const Layout = observer(({ children }: LayoutProps) => {
   const handleCloseModal = () => {
     setIsAuthModalOpen(false);
     authStore.clearError();
+    // Force reload after successful login to refresh all data
+    if (authStore.isAuthenticated) {
+      window.location.reload();
+    }
   };
 
   const handleLogout = () => {

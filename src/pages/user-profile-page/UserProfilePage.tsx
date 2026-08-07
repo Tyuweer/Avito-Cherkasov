@@ -184,4 +184,4 @@ export const UserProfilePage: React.FC = () => {
       </div>
     </div>
   );
-};
+}

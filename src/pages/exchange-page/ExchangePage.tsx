@@ -6,11 +6,13 @@ import type { IExchangeDeal } from '../../shared/api/types';
 import { DealStatus, ChainLinkStatus, LogisticsStatus } from '../../shared/api/types';
 import { mockUsers } from '../../entities/user/api/userApi';
 import { mockItems } from '../../entities/item/api/itemApi';
+import { useAuthStore } from '../../app/hooks/useAuthStore';
 
 export const ExchangePage = () => {
   const { dealId } = useParams();
   const [deal, setDeal] = useState<IExchangeDeal | null>(null);
-  const [currentUserId] = useState(1); // ID Alex_Dev
+  const authStore = useAuthStore();
+  const currentUserId = authStore.user?.id ?? 1; // Получаем ID текущего пользователя из стора
 
 // ... внутри ExchangePage ...
   useEffect(() => {
@@ -37,13 +39,13 @@ export const ExchangePage = () => {
           // 2. Я (Alex_Dev)
           // Я имею Лодку, хочу Апельсин. Отдаю Лодку Максиму.
           {
-            userId: 1,
-            user: mockUsers[1],
+            userId: currentUserId,
+            user: mockUsers[currentUserId] || mockUsers[1],
             status: ChainLinkStatus.PENDING,
             givingItemId: 112, // Лодка
             givingItem: {
                 id: 112, title: 'Лодка ПВХ', description: 'Надувная', imageUrl: 'https://placehold.co/100/blue/white?text=Boat',
-                category: 'Спорт', quantity: 1, unit: 'шт', authorId: 1, holderId: 1, isLocked: false, createdAt: ''
+                category: 'Спорт', quantity: 1, unit: 'шт', authorId: currentUserId, holderId: currentUserId, isLocked: false, createdAt: ''
             },
             logisticsStatus: LogisticsStatus.NONE,
           },

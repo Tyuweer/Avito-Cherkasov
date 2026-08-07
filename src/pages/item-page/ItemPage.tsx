@@ -156,14 +156,7 @@ export const ItemPage = () => {
                     <span className="text-xs text-gray-400 uppercase font-bold mb-2 tracking-wider">Владелец товара</span>
                     {owner ? (
                         <Link to={`/user/${owner.id}`} className="flex items-center gap-3 bg-gray-50 p-2 pr-4 rounded-xl border border-gray-100 hover:border-[#00AAFF] transition-colors">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold shadow flex-shrink-0 overflow-hidden">
-                                {owner.avatarUrl ? (
-                                    <img src={owner.avatarUrl} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                    owner.username.charAt(0).toUpperCase()
-                                )}
-                            </div>
-                            <UserBadge user={owner} size="sm" />
+                            <UserBadge user={owner} />
                         </Link>
                     ) : (
                         <span className="text-gray-400 text-sm">Неизвестен</span>

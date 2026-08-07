@@ -3,26 +3,35 @@ import { useEffect, useState } from 'react';
 import { ItemCard } from '../../entities/item/ui/ItemCard';
 import { itemApi } from '../../entities/item/api/itemApi';
 import type { IItem } from '../../shared/api/types';
+import { useAuthStore } from '../../app/hooks/useAuthStore';
 
 export const HomePage = () => {
+  const authStore = useAuthStore();
+  const currentUserId = authStore.user?.id;
+
   const [items, setItems] = useState<IItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [allItems, setAllItems] = useState<IItem[]>([]);
-  // Убрали hasSearched, он не нужен
 
-  useEffect(() => {
+  const loadItems = () => {
     itemApi.getMyItems().then(data => {
-      // Исключаем товары, которыми я распоряжаюсь (holderId === 1) и свои собственные (authorId === 1)
-      const filtered = data.filter(i => i.holderId !== 1 && i.authorId !== 1);
+      // Исключаем товары, которыми я распоряжаюсь (holderId === currentUserId) и свои собственные (authorId === currentUserId)
+      const filtered = data.filter(i => i.holderId !== currentUserId && i.authorId !== currentUserId);
       setAllItems(filtered);
       setItems(filtered); // Изначально показываем все доступные
     });
-  }, []);
+  };
+
+  useEffect(() => {
+    if (currentUserId !== undefined) {
+      loadItems();
+    }
+  }, [currentUserId]);
 
   const handleSearch = () => {
     // Убрали setHasSearched(true);
     const query = searchQuery.trim().toLowerCase();
-    
+
     if (!query) {
       // Если поиск пустой - возвращаем все товары
       setItems(allItems);
@@ -30,8 +39,8 @@ export const HomePage = () => {
     }
 
     // Фильтрация
-    const results = allItems.filter(i => 
-      i.title.toLowerCase().includes(query) || 
+    const results = allItems.filter(i =>
+      i.title.toLowerCase().includes(query) ||
       i.category.toLowerCase().includes(query)
     );
     setItems(results);
@@ -39,26 +48,26 @@ export const HomePage = () => {
 
   return (
     <div className="space-y-8 w-full pb-20">
-      
+
       {/* Hero Search */}
       <div className="bg-white p-8 md:p-12 rounded-2xl shadow-sm border border-gray-100 w-full flex flex-col items-center">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 text-center">Найти обмен</h1>
-        
+
         {/* Принудительное центрирование текста */}
         <p className="text-gray-500 mb-8 max-w-2xl text-center mx-auto">
           Введите название товара, который вы хотите получить, или смотрите все доступные варианты ниже.
         </p>
-        
+
         <div className="w-full max-w-3xl flex flex-col sm:flex-row gap-3 justify-center">
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Например: Велосипед, Апельсин..." 
+            placeholder="Например: Велосипед, Апельсин..."
             className="flex-1 px-6 py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00AAFF] focus:border-transparent text-lg shadow-inner text-center sm:text-left"
           />
-          <button 
+          <button
             onClick={handleSearch}
             className="px-10 py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-colors text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
@@ -92,7 +101,7 @@ export const HomePage = () => {
                   <p className="text-sm text-gray-400 max-w-md mx-auto">
                       По вашему запросу "{searchQuery}" нет товаров. Попробуйте изменить название или добавьте свой товар в профиле, чтобы запустить цепочку.
                   </p>
-                  <button 
+                  <button
                     onClick={() => {setSearchQuery(''); setItems(allItems);}}
                     className="mt-6 text-[#00AAFF] font-medium hover:underline"
                   >

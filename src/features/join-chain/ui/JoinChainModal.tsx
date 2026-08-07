@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import type { IItem } from '../../../shared/api/types';
 import { itemApi } from '../../../entities/item/api/itemApi';
+import { useAuthStore } from '../../../app/hooks/useAuthStore';
 // Убрали импорт ItemCard, так как используем кастомный список с чекбоксами
 
 interface JoinChainModalProps {
@@ -11,34 +12,43 @@ interface JoinChainModalProps {
 }
 
 export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModalProps) => {
+  const authStore = useAuthStore();
+  const currentUserId = authStore.user?.id ?? 1;
+
   const [myItems, setMyItems] = useState<IItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
+  const loadMyItems = () => {
     itemApi.getMyItems().then(items => {
       // Фильтр:
-      // 1. authorId === 1 (только мои собственные вещи, которые я могу отдать)
+      // 1. authorId === currentUserId (только мои собственные вещи, которые я могу отдать)
       // 2. id !== targetItem.id (нельзя обменять вещь на саму себя)
       // 3. !isLocked (нельзя отдать заблокированное)
-      const available = items.filter(i => 
-        i.authorId === 1 && 
-        i.id !== targetItem.id && 
+      const available = items.filter(i =>
+        i.authorId === currentUserId &&
+        i.id !== targetItem.id &&
         !i.isLocked
       );
       setMyItems(available);
     });
-  }, [targetItem.id]);
+  };
+
+  useEffect(() => {
+    if (currentUserId !== undefined) {
+      loadMyItems();
+    }
+  }, [targetItem.id, currentUserId]);
 
   const toggleSelection = (id: number) => {
-    setSelectedIds(prev => 
+    setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
 
   const handleConfirm = async () => {
     if (selectedIds.length === 0) return;
-    
+
     setIsSubmitting(true);
     try {
       // Вызываем метод chown для каждого выбранного товара
@@ -57,7 +67,7 @@ export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModa
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        
+
         {/* Header */}
         <div className="p-6 border-b border-gray-100 bg-gray-50">
           <h2 className="text-xl font-bold text-gray-900">Встать в цепочку</h2>
@@ -79,13 +89,13 @@ export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModa
           ) : (
             <div className="space-y-3">
               {myItems.map(item => (
-                <div 
+                <div
                   key={item.id}
                   onClick={() => toggleSelection(item.id)}
                   className={`
                     flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-all
-                    ${selectedIds.includes(item.id) 
-                      ? 'border-[#00AAFF] bg-blue-50 ring-1 ring-[#00AAFF]' 
+                    ${selectedIds.includes(item.id)
+                      ? 'border-[#00AAFF] bg-blue-50 ring-1 ring-[#00AAFF]'
                       : 'border-gray-200 hover:bg-gray-50'}
                   `}
                 >
@@ -115,13 +125,13 @@ export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModa
 
         {/* Footer */}
         <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-          <button 
+          <button
             onClick={onClose}
             className="px-4 py-2 text-gray-600 font-medium hover:text-gray-900 transition-colors"
           >
             Отмена
           </button>
-          <button 
+          <button
             onClick={handleConfirm}
             disabled={selectedIds.length === 0 || isSubmitting}
             className="px-6 py-2 bg-[#00AAFF] text-white rounded-lg font-medium hover:bg-[#0095E0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
