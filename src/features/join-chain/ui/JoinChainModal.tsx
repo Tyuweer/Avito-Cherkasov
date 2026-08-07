@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import type { IItem } from '../../../shared/api/types';
 import { itemApi } from '../../../entities/item/api/itemApi';
 import { useAuthStore } from '../../../app/hooks/useAuthStore';
+import { SuccessSticker } from '../../../shared/ui/SuccessSticker';
 // Убрали импорт ItemCard, так как используем кастомный список с чекбоксами
 
 interface JoinChainModalProps {
@@ -18,6 +19,7 @@ export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModa
   const [myItems, setMyItems] = useState<IItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessSticker, setShowSuccessSticker] = useState(false);
 
   const loadMyItems = () => {
     itemApi.getMyItems().then(items => {
@@ -56,7 +58,12 @@ export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModa
       for (const itemId of selectedIds) {
         await itemApi.transferRight(itemId, targetItem.holderId);
       }
-      onConfirm();
+      // Показываем красивый стикер успеха
+      setShowSuccessSticker(true);
+      // Закрываем модалку после показа стикера
+      setTimeout(() => {
+        onConfirm();
+      }, 500);
     } catch (error) {
       console.error(error);
     } finally {
@@ -140,6 +147,14 @@ export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModa
           </button>
         </div>
       </div>
+
+      {/* Success Sticker */}
+      <SuccessSticker
+        message="Вы успешно вступили в цепочку!"
+        isVisible={showSuccessSticker}
+        onClose={() => setShowSuccessSticker(false)}
+        duration={2500}
+      />
     </div>
   );
 };

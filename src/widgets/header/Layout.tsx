@@ -1,5 +1,5 @@
 // src/widgets/header/Layout.tsx
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../app/hooks/useAuthStore';
 import { observer } from 'mobx-react-lite';
 import { useState } from 'react';
@@ -11,7 +11,6 @@ interface LayoutProps {
 
 export const Layout = observer(({ children }: LayoutProps) => {
   const authStore = useAuthStore();
-  const navigate = useNavigate();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const handleLoginClick = () => {
@@ -21,15 +20,12 @@ export const Layout = observer(({ children }: LayoutProps) => {
   const handleCloseModal = () => {
     setIsAuthModalOpen(false);
     authStore.clearError();
-    // Force reload after successful login to refresh all data
-    if (authStore.isAuthenticated) {
-      window.location.reload();
-    }
+    // No reload needed - HomePage will react to auth state change automatically
   };
 
   const handleLogout = () => {
     authStore.logout();
-    navigate('/');
+    // No reload needed - HomePage will react to auth state change automatically
   };
 
   // Use authStore user for display

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useAuthStore } from '../../../app/hooks/useAuthStore';
+import { SuccessSticker } from '../../../shared/ui/SuccessSticker';
 
 type AuthMode = 'login' | 'register';
 
@@ -30,6 +31,7 @@ export const AuthForm: React.FC<AuthFormProps> = observer(({ onSuccess }) => {
     email: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const [showSuccessSticker, setShowSuccessSticker] = useState(false);
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -79,10 +81,14 @@ export const AuthForm: React.FC<AuthFormProps> = observer(({ onSuccess }) => {
 
     if (success) {
       setFormData({ username: '', password: '', email: '' });
-      // Close modal and redirect to home page after successful auth
-      if (onSuccess) {
-        onSuccess();
-      }
+      // Показываем красивый стикер успеха перед закрытием модалки
+      setShowSuccessSticker(true);
+      // Закрываем модалку после показа стикера
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess();
+        }
+      }, 500);
     }
   };
 
@@ -244,6 +250,14 @@ export const AuthForm: React.FC<AuthFormProps> = observer(({ onSuccess }) => {
           By continuing, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>
+
+      {/* Success Sticker for auth */}
+      <SuccessSticker
+        message={mode === 'login' ? 'С возвращением!' : 'Аккаунт создан!'}
+        isVisible={showSuccessSticker}
+        onClose={() => setShowSuccessSticker(false)}
+        duration={2500}
+      />
     </div>
   );
 });

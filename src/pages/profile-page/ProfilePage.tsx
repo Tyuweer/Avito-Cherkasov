@@ -7,6 +7,7 @@ import type { IItem } from "../../shared/api/types";
 import { useNavigate } from "react-router-dom";
 import { CreateItemForm } from "../../features/create-item/ui/CreateItemForm";
 import { AuthModal } from "../../features/auth/ui/AuthModal";
+import { SuccessSticker } from "../../shared/ui/SuccessSticker";
 
 type Tab = "items" | "wishes" | "deals" | "settings";
 
@@ -19,6 +20,8 @@ export const ProfilePage = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isWishModalOpen, setIsWishModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<{ open: boolean; itemId?: number }>({ open: false });
+  const [showSuccessSticker, setShowSuccessSticker] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Settings form state
   const [newUsername, setNewUsername] = useState("");
@@ -130,10 +133,15 @@ export const ProfilePage = () => {
     );
 
     if (success) {
-      setSettingsSuccess("Профиль успешно обновлен");
+      // Показываем красивый стикер успеха вместо текста
+      setSuccessMessage(avatarUrl && avatarUrl !== currentUser.avatarUrl
+        ? "Аватарка обновлена!"
+        : "Профиль успешно обновлен!");
+      setShowSuccessSticker(true);
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setSettingsSuccess("");
     } else {
       setSettingsError(authStore.error || "Ошибка обновления профиля");
     }
@@ -626,6 +634,14 @@ export const ProfilePage = () => {
           </div>
         </div>
       )}
+
+      {/* Success Sticker for profile update */}
+      <SuccessSticker
+        message={successMessage}
+        isVisible={showSuccessSticker}
+        onClose={() => setShowSuccessSticker(false)}
+        duration={2500}
+      />
     </div>
   );
 };

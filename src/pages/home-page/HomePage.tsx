@@ -15,17 +15,23 @@ export const HomePage = () => {
 
   const loadItems = () => {
     itemApi.getMyItems().then(data => {
-      // Исключаем товары, которыми я распоряжаюсь (holderId === currentUserId) и свои собственные (authorId === currentUserId)
-      const filtered = data.filter(i => i.holderId !== currentUserId && i.authorId !== currentUserId);
+      let filtered: IItem[];
+
+      if (currentUserId !== undefined && currentUserId !== null) {
+        // Пользователь авторизован - исключаем товары, которыми я распоряжаюсь (holderId === currentUserId) и свои собственные (authorId === currentUserId)
+        filtered = data.filter(i => i.holderId !== currentUserId && i.authorId !== currentUserId);
+      } else {
+        // Пользователь не авторизован - показываем все товары
+        filtered = data;
+      }
+
       setAllItems(filtered);
       setItems(filtered); // Изначально показываем все доступные
     });
   };
 
   useEffect(() => {
-    if (currentUserId !== undefined) {
-      loadItems();
-    }
+    loadItems();
   }, [currentUserId]);
 
   const handleSearch = () => {

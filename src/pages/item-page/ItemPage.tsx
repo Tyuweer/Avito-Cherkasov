@@ -226,7 +226,7 @@ export const ItemPage = () => {
             onClose={() => setIsJoinModalOpen(false)}
             onConfirm={() => {
                 setIsJoinModalOpen(false);
-                alert('Вы успешно встали в цепочку! Ожидайте подбора вариантов.');
+                // Убрали alert, теперь показывается красивый стикер в самом модалке
             }}
         />
       )}
