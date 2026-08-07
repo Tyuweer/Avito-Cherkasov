@@ -240,5 +240,22 @@ export const itemApi = {
   addWish: async (itemId: number): Promise<void> => {
     console.log(`Adding wish for item: ${itemId}`);
     await new Promise(r => setTimeout(r, 300));
+  },
+
+  updateItem: async (itemId: number, data: Partial<IItem>): Promise<IItem> => {
+    await new Promise(r => setTimeout(r, 500));
+
+    const index = mockItems.findIndex(i => i.id === itemId);
+    if (index === -1) {
+      throw new Error('Item not found');
+    }
+
+    // Update the item in mockItems
+    mockItems[index] = {
+      ...mockItems[index],
+      ...data,
+    };
+
+    return mockItems[index];
   }
 };

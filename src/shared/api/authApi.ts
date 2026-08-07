@@ -25,31 +25,36 @@ interface AuthResponse {
 }
 
 // Mock users database with unique credentials, items and wishes
-export const mockUsersDb: Record<string, { password: string; email: string; user: IUser }> = {
+export const mockUsersDb: Record<string, { password: string; email: string; user: IUser; wishes?: string[] }> = {
   alex: {
     password: '123456',
     email: 'alex@example.com',
     user: { id: 1, username: 'Alex_Dev', rating: 4.8, declineCount: 1, pvzAddress: 'ПВЗ №123, ул. Ленина 10' },
+    wishes: ['Смартфон', 'Наушники', 'Книги', 'Винил'],
   },
   dima: {
     password: '123456',
     email: 'dima@example.com',
     user: { id: 2, username: 'Dima_Biker', rating: 4.9, declineCount: 0, pvzAddress: 'ПВЗ №45, пр. Мира 5' },
+    wishes: ['Апельсины', 'Лодка', 'Гитара', 'Кофемашина', 'Футболка'],
   },
   max: {
     password: '123456',
     email: 'max@example.com',
     user: { id: 3, username: 'Max_Gamer', rating: 4.5, declineCount: 2, pvzAddress: 'ПВЗ №78, ул. Гагарина 15' },
+    wishes: ['Игры PS5', 'Клавиатура', 'Монитор', 'Мышь'],
   },
   photo: {
     password: '123456',
     email: 'photo@example.com',
     user: { id: 4, username: 'Photo_Master', rating: 5.0, declineCount: 0, pvzAddress: 'ПВЗ №12, ул. Пушкина 8' },
+    wishes: ['Кофемашина', 'Чайный сервиз', 'Штатив', 'Сумка для камеры'],
   },
   music: {
     password: '123456',
     email: 'music@example.com',
     user: { id: 5, username: 'Music_Lover', rating: 4.7, declineCount: 0, pvzAddress: 'ПВЗ №34, ул. Лермонтова 22' },
+    wishes: ['Гитара', 'Укулеле', 'Защита', 'Кроссовки', 'Виниловые пластинки'],
   },
 };
 
@@ -229,6 +234,54 @@ export const authApi = {
       data: userRecord.user,
       message: 'Profile updated successfully',
     };
+  },
+
+  /**
+   * Get user wishes by user ID
+   */
+  getUserWishes: async (userId: number): Promise<string[]> => {
+    await mockDelay(100);
+    for (const record of Object.values(mockUsersDb)) {
+      if (record.user.id === userId) {
+        return record.wishes || [];
+      }
+    }
+    return [];
+  },
+
+  /**
+   * Add wish to user
+   */
+  addWish: async (userId: number, wish: string): Promise<string[]> => {
+    await mockDelay(200);
+    for (const record of Object.values(mockUsersDb)) {
+      if (record.user.id === userId) {
+        if (!record.wishes) {
+          record.wishes = [];
+        }
+        if (!record.wishes.includes(wish)) {
+          record.wishes.push(wish);
+        }
+        return record.wishes;
+      }
+    }
+    return [];
+  },
+
+  /**
+   * Remove wish from user
+   */
+  removeWish: async (userId: number, wish: string): Promise<string[]> => {
+    await mockDelay(200);
+    for (const record of Object.values(mockUsersDb)) {
+      if (record.user.id === userId) {
+        if (record.wishes) {
+          record.wishes = record.wishes.filter(w => w !== wish);
+        }
+        return record.wishes || [];
+      }
+    }
+    return [];
   },
 };
 

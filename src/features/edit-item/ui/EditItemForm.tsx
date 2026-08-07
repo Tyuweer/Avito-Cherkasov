@@ -1,30 +1,31 @@
-// src/features/create-item/ui/CreateItemForm.tsx
+// src/features/edit-item/ui/EditItemForm.tsx
 import { useState, useEffect } from 'react';
 import type { IItem } from '../../../shared/api/types';
 import { itemApi } from '../../../entities/item/api/itemApi';
 import { authApi } from '../../../shared/api/authApi';
 import { useAuthStore } from '../../../app/hooks/useAuthStore';
 
-interface CreateItemFormProps {
+interface EditItemFormProps {
+  item: IItem;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => {
+export const EditItemForm = ({ item, onSuccess, onCancel }: EditItemFormProps) => {
   const authStore = useAuthStore();
   const [formData, setFormData] = useState<Partial<IItem>>({
-    title: '',
-    description: '',
-    category: '',
-    quantity: 1,
-    unit: 'шт',
-    imageUrl: 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Image', // Дефолтная заглушка
-    wishes: [],
+    title: item.title,
+    description: item.description,
+    category: item.category,
+    quantity: item.quantity,
+    unit: item.unit,
+    imageUrl: item.imageUrl,
+    wishes: item.wishes || [],
   });
   const [isLoading, setIsLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [userWishes, setUserWishes] = useState<string[]>([]);
-  const [selectedWishes, setSelectedWishes] = useState<string[]>([]);
+  const [selectedWishes, setSelectedWishes] = useState<string[]>(item.wishes || []);
   const [customWish, setCustomWish] = useState('');
 
   // Load user wishes on mount
@@ -53,10 +54,10 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
         await authApi.addWish(authStore.user!.id, customWish.trim());
       }
 
-      await itemApi.createItem({ ...formData, imageUrl: finalImageUrl, wishes: allWishes });
+      await itemApi.updateItem(item.id, { ...formData, imageUrl: finalImageUrl, wishes: allWishes });
       onSuccess();
     } catch (error) {
-      console.error('Failed to create item', error);
+      console.error('Failed to update item', error);
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +71,7 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 max-w-md w-full max-h-[90vh] overflow-y-auto">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Добавить вещь</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Редактировать вещь</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -85,7 +86,7 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
           />
         </div>
 
-        {/* Новое поле для загрузки фото с устройства */}
+        {/* Поле для загрузки фото с устройства */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Фото товара</label>
           <div className="flex items-center gap-4">
@@ -93,7 +94,7 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
               {imageFile ? (
                 <img src={URL.createObjectURL(imageFile)} alt="Preview" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-xs text-gray-400">Нет фото</span>
+                <img src={formData.imageUrl} alt="Current" className="w-full h-full object-cover" />
               )}
             </div>
             <label className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors cursor-pointer">
@@ -259,7 +260,7 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
             disabled={isLoading}
             className="flex-1 py-2 bg-[#00AAFF] text-white rounded-lg font-medium hover:bg-[#0095E0] transition-colors disabled:opacity-50"
           >
-            {isLoading ? 'Сохранение...' : 'Добавить'}
+            {isLoading ? 'Сохранение...' : 'Сохранить'}
           </button>
         </div>
       </form>

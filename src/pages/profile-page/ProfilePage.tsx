@@ -6,7 +6,9 @@ import { itemApi, mockItems } from "../../entities/item/api/itemApi";
 import type { IItem } from "../../shared/api/types";
 import { useNavigate } from "react-router-dom";
 import { CreateItemForm } from "../../features/create-item/ui/CreateItemForm";
+import { EditItemForm } from "../../features/edit-item/ui/EditItemForm";
 import { SuccessSticker } from "../../shared/ui/SuccessSticker";
+import { authApi } from "../../shared/api/authApi";
 
 type Tab = "items" | "wishes" | "deals" | "settings";
 
@@ -16,6 +18,7 @@ export const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("items");
   const [myItems, setMyItems] = useState<IItem[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<{ open: boolean; item?: IItem }>({ open: false });
   const [isWishModalOpen, setIsWishModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<{ open: boolean; itemId?: number }>({ open: false });
   const [showSuccessSticker, setShowSuccessSticker] = useState(false);
@@ -33,11 +36,8 @@ export const ProfilePage = () => {
   // Use authStore user for profile data
   const currentUser = authStore.user;
 
-  // Мок пожеланий
-  const [myWishes, setMyWishes] = useState<string[]>([
-    "Велосипед",
-    "Апельсины",
-  ]);
+  // Wishes state - loaded from API
+  const [myWishes, setMyWishes] = useState<string[]>([]);
 
   useEffect(() => {
     if (currentUser) {
@@ -48,6 +48,8 @@ export const ProfilePage = () => {
       });
       setNewUsername(currentUser.username);
       setAvatarUrl(currentUser.avatarUrl || "");
+      // Load wishes from API
+      authApi.getUserWishes(currentUser.id).then(setMyWishes);
     }
   }, [currentUser?.id]);
 
@@ -57,7 +59,31 @@ export const ProfilePage = () => {
       itemApi
         .getMyItems()
         .then((items) => setMyItems(items.filter((i) => i.holderId === currentUser.id)));
+      // Reload wishes in case new ones were added
+      authApi.getUserWishes(currentUser.id).then(setMyWishes);
     }
+  };
+
+  const handleItemUpdated = () => {
+    setIsEditModalOpen({ open: false });
+    if (currentUser) {
+      itemApi
+        .getMyItems()
+        .then((items) => setMyItems(items.filter((i) => i.holderId === currentUser.id)));
+    }
+  };
+
+  const handleEditItem = (item: IItem) => {
+    // Check if item belongs to user (authorId === holderId) and is not locked
+    if (item.authorId !== item.holderId) {
+      alert("Нельзя редактировать товар с исключительным правом. Сначала нужно вернуть право владельцу.");
+      return;
+    }
+    if (item.isLocked) {
+      alert("Нельзя редактировать товар, который участвует в активной сделке. Дождитесь завершения или отмены сделки.");
+      return;
+    }
+    setIsEditModalOpen({ open: true, item });
   };
 
   const handleDeleteItem = (itemId: number) => {
@@ -87,15 +113,19 @@ export const ProfilePage = () => {
     setIsDeleteModalOpen({ open: false });
   };
 
-  const handleAddWish = (wishText: string) => {
-    if (wishText.trim()) {
-      setMyWishes([...myWishes, wishText.trim()]);
+  const handleAddWish = async (wishText: string) => {
+    if (wishText.trim() && currentUser) {
+      const updatedWishes = await authApi.addWish(currentUser.id, wishText.trim());
+      setMyWishes(updatedWishes);
       setIsWishModalOpen(false);
     }
   };
 
-  const handleRemoveWish = (idx: number) => {
-    setMyWishes(myWishes.filter((_, i) => i !== idx));
+  const handleRemoveWish = async (wish: string) => {
+    if (currentUser) {
+      const updatedWishes = await authApi.removeWish(currentUser.id, wish);
+      setMyWishes(updatedWishes);
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -223,6 +253,7 @@ export const ProfilePage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {myItems.map((item) => {
                   const originalOwner = item.authorId !== item.holderId;
+                  const canEdit = item.authorId === item.holderId && !item.isLocked;
                   return (
                     <div key={item.id} className="relative group flex flex-col">
                       {originalOwner && (
@@ -238,6 +269,18 @@ export const ProfilePage = () => {
                       >
                         <div className="relative">
                           <ItemCard item={item} />
+                          {canEdit && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditItem(item);
+                              }}
+                              className="absolute top-2 left-2 w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                              title="Редактировать предмет"
+                            >
+                              ✎
+                            </button>
+                          )}
                           {!originalOwner && !item.isLocked && (
                             <button
                               onClick={(e) => {
@@ -287,14 +330,14 @@ export const ProfilePage = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {myWishes.map((wish, idx) => (
+              {myWishes.map((wish) => (
                 <div
-                  key={idx}
+                  key={wish}
                   className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between group hover:shadow-md transition-shadow"
                 >
                   <span className="font-medium text-blue-900">{wish}</span>
                   <button
-                    onClick={() => handleRemoveWish(idx)}
+                    onClick={() => handleRemoveWish(wish)}
                     className="text-blue-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     ✕
@@ -533,6 +576,17 @@ export const ProfilePage = () => {
           <CreateItemForm
             onSuccess={handleItemCreated}
             onCancel={() => setIsCreateModalOpen(false)}
+          />
+        </div>
+      )}
+
+      {/* Edit Item Modal */}
+      {isEditModalOpen.open && isEditModalOpen.item && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <EditItemForm
+            item={isEditModalOpen.item}
+            onSuccess={handleItemUpdated}
+            onCancel={() => setIsEditModalOpen({ open: false })}
           />
         </div>
       )}
