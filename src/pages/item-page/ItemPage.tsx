@@ -8,6 +8,7 @@ import { UserBadge } from '../../entities/user/ui/UserBadge';
 import { JoinChainModal } from '../../features/join-chain/ui/JoinChainModal';
 import { useAuthStore } from '../../app/hooks/useAuthStore';
 import { getAvailableItemsForUser } from '../../entities/item/api/itemApi';
+import { AuthModal } from '../../features/auth/ui/AuthModal';
 
 export const ItemPage = () => {
   const { id } = useParams();
@@ -16,6 +17,7 @@ export const ItemPage = () => {
   const [item, setItem] = useState<IItem | null>(null);
   const [mainImage, setMainImage] = useState('');
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const currentUser = authStore.user;
   const isAuthenticated = authStore.isAuthenticated;
@@ -46,7 +48,7 @@ export const ItemPage = () => {
 
   const handleDirectExchange = () => {
     if (!isAuthenticated) {
-      alert('Пожалуйста, войдите в аккаунт чтобы предложить обмен');
+      setIsAuthModalOpen(true);
       return;
     }
     if (hasDesiredItem) {
@@ -58,7 +60,7 @@ export const ItemPage = () => {
 
   const handleJoinChain = () => {
     if (!isAuthenticated) {
-      alert('Пожалуйста, войдите в аккаунт чтобы встать в цепочку');
+      setIsAuthModalOpen(true);
       return;
     }
     if (!hasItemsToExchange) {
@@ -221,6 +223,10 @@ export const ItemPage = () => {
                 alert('Вы успешно встали в цепочку! Ожидайте подбора вариантов.');
             }}
         />
+      )}
+
+      {isAuthModalOpen && (
+        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       )}
     </div>
   );

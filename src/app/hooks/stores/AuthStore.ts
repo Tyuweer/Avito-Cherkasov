@@ -114,6 +114,38 @@ export class AuthStore {
       this.error = null;
     });
   };
+
+  changeProfile = async (oldPassword?: string, newPassword?: string, newUsername?: string, newAvatarUrl?: string): Promise<boolean> => {
+    if (!this.user) {
+      runInAction(() => {
+        this.error = 'User not authenticated';
+      });
+      return false;
+    }
+
+    runInAction(() => {
+      this.isLoading = true;
+      this.error = null;
+    });
+
+    try {
+      const response = await authApi.changeProfile(this.user.id, { oldPassword, newPassword, newUsername, newAvatarUrl });
+
+      runInAction(() => {
+        this.user = response.data;
+        this.saveToStorage(this.token!, response.data);
+        this.isLoading = false;
+      });
+
+      return true;
+    } catch (err) {
+      runInAction(() => {
+        this.error = err instanceof Error ? err.message : 'Profile update failed';
+        this.isLoading = false;
+      });
+      return false;
+    }
+  };
 }
 
 export const authStore = new AuthStore();

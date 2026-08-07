@@ -12,6 +12,13 @@ interface RegisterRequest {
   email: string;
 }
 
+interface ChangeProfileRequest {
+  oldPassword?: string;
+  newPassword?: string;
+  newUsername?: string;
+  newAvatarUrl?: string;
+}
+
 interface AuthResponse {
   token: string;
   user: IUser;
@@ -157,6 +164,71 @@ export const authApi = {
       }
     }
     return null;
+  },
+
+  /**
+   * PUT /api/v1/profile
+   * Change username and/or password
+   */
+  changeProfile: async (userId: number, { oldPassword, newPassword, newUsername, newAvatarUrl }: ChangeProfileRequest): Promise<ApiResponse<IUser>> => {
+    await mockDelay(500);
+
+    // Find user record by ID
+    let userRecord: typeof mockUsersDb[string] | undefined;
+    let usernameKey: string | undefined;
+
+    for (const [key, record] of Object.entries(mockUsersDb)) {
+      if (record.user.id === userId) {
+        userRecord = record;
+        usernameKey = key;
+        break;
+      }
+    }
+
+    if (!userRecord) {
+      throw new Error('User not found');
+    }
+
+    // If changing password, verify old password
+    if (newPassword) {
+      if (!oldPassword) {
+        throw new Error('Old password is required to change password');
+      }
+      if (oldPassword !== userRecord.password) {
+        throw new Error('Invalid old password');
+      }
+    }
+
+    // If changing username, check if it's already taken
+    if (newUsername && newUsername.toLowerCase() !== usernameKey) {
+      if (mockUsersDb[newUsername.toLowerCase()]) {
+        throw new Error('Username already exists');
+      }
+    }
+
+    // Apply changes
+    if (newPassword) {
+      userRecord.password = newPassword;
+    }
+
+    if (newUsername) {
+      // Update username in the user object
+      userRecord.user.username = newUsername;
+      // Move to new key if username changed
+      if (usernameKey && newUsername.toLowerCase() !== usernameKey) {
+        mockUsersDb[newUsername.toLowerCase()] = userRecord;
+        delete mockUsersDb[usernameKey];
+      }
+    }
+
+    if (newAvatarUrl !== undefined) {
+      userRecord.user.avatarUrl = newAvatarUrl || undefined;
+    }
+
+    return {
+      data: userRecord.user,
+      message: 'Profile updated successfully',
+    };
   },
 };
 
