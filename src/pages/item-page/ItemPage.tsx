@@ -38,6 +38,9 @@ export const ItemPage = () => {
 
   const owner = mockUsers[item.authorId];
 
+  // Check if current user is the holder (has exclusive rights) or author
+  const isMyItem = currentUser && (item.holderId === currentUser.id || item.authorId === currentUser.id);
+
   // Check if I have what the owner wants (for direct exchange)
   const hasDesiredItem = item.wishes?.some(wish =>
     myAvailableItems.some(myItem =>
@@ -104,17 +107,19 @@ export const ItemPage = () => {
               </div>
             )}
 
-            {/* Security block */}
-            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-xl text-xs text-yellow-800 flex items-start gap-3">
-                <span className="text-lg">🔒</span>
-                <div>
-                    <p className="font-bold mb-1">Безопасная сделка</p>
-                    <p className="opacity-80 leading-relaxed">
-                        Контакты продавца скрыты до момента подтверждения сделки и сдачи товара в ПВЗ.
-                        Общение вне платформы запрещено правилами безопасности.
-                    </p>
-                </div>
-            </div>
+            {/* Security block - hide for own items */}
+            {!isMyItem && (
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-xl text-xs text-yellow-800 flex items-start gap-3">
+                  <span className="text-lg">🔒</span>
+                  <div>
+                      <p className="font-bold mb-1">Безопасная сделка</p>
+                      <p className="opacity-80 leading-relaxed">
+                          Контакты продавца скрыты до момента подтверждения сделки и сдачи товара в ПВЗ.
+                          Общение вне платформы запрещено правилами безопасности.
+                      </p>
+                  </div>
+              </div>
+            )}
           </div>
 
           {/* Right column: Info */}
@@ -158,7 +163,8 @@ export const ItemPage = () => {
                     )}
                 </div>
 
-                {!item.isLocked ? (
+                {/* Hide action buttons for own items */}
+                {!isMyItem && !item.isLocked ? (
                     <div className="flex flex-col gap-2 min-w-[200px]">
                         {/* Direct Exchange Button - Active only if user has what owner wants */}
                         <button
@@ -204,11 +210,11 @@ export const ItemPage = () => {
                             </p>
                         )}
                     </div>
-                ) : (
+                ) : !isMyItem ? (
                      <div className="px-8 py-4 rounded-xl font-bold text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed text-center min-w-[200px]">
                         Недоступно для обмена
                      </div>
-                )}
+                ) : null}
             </div>
           </div>
         </div>

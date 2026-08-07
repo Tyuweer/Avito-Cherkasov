@@ -18,13 +18,20 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
     imageUrl: 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Image', // Дефолтная заглушка
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      await itemApi.createItem(formData);
+      // If image file is selected, create a local URL for it
+      let finalImageUrl = formData.imageUrl;
+      if (imageFile) {
+        finalImageUrl = URL.createObjectURL(imageFile);
+      }
+
+      await itemApi.createItem({ ...formData, imageUrl: finalImageUrl });
       onSuccess();
     } catch (error) {
       console.error('Failed to create item', error);
@@ -36,13 +43,13 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 max-w-md w-full">
       <h2 className="text-xl font-bold text-gray-900 mb-4">Добавить вещь</h2>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
-          <input 
+          <input
             required
-            type="text" 
+            type="text"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00AAFF] focus:border-transparent outline-none"
             value={formData.title}
             onChange={e => setFormData({...formData, title: e.target.value})}
@@ -50,11 +57,40 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
           />
         </div>
 
-        {/* Новое поле для фото */}
+        {/* Новое поле для загрузки фото с устройства */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Фото товара</label>
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden border border-gray-300 flex items-center justify-center">
+              {imageFile ? (
+                <img src={URL.createObjectURL(imageFile)} alt="Preview" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs text-gray-400">Нет фото</span>
+              )}
+            </div>
+            <label className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors cursor-pointer">
+              Выбрать файл
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setImageFile(file);
+                  }
+                }}
+              />
+            </label>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Или вставьте ссылку ниже</p>
+        </div>
+
+        {/* Поле для ссылки на фото (альтернатива) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Ссылка на фото</label>
-          <input 
-            type="url" 
+          <input
+            type="url"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00AAFF] focus:border-transparent outline-none text-sm"
             value={formData.imageUrl}
             onChange={e => setFormData({...formData, imageUrl: e.target.value})}
@@ -65,7 +101,7 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
-          <textarea 
+          <textarea
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00AAFF] focus:border-transparent outline-none h-20 resize-none"
             value={formData.description}
@@ -77,9 +113,9 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Категория</label>
-            <input 
+            <input
               required
-              type="text" 
+              type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00AAFF] outline-none"
               value={formData.category}
               onChange={e => setFormData({...formData, category: e.target.value})}
@@ -87,9 +123,9 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Количество</label>
-            <input 
+            <input
               required
-              type="number" 
+              type="number"
               min="1"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00AAFF] outline-none"
               value={formData.quantity}
@@ -99,14 +135,14 @@ export const CreateItemForm = ({ onSuccess, onCancel }: CreateItemFormProps) => 
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button 
+          <button
             type="button"
             onClick={onCancel}
             className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
           >
             Отмена
           </button>
-          <button 
+          <button
             type="submit"
             disabled={isLoading}
             className="flex-1 py-2 bg-[#00AAFF] text-white rounded-lg font-medium hover:bg-[#0095E0] transition-colors disabled:opacity-50"
