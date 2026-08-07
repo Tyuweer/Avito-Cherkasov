@@ -1,118 +1,462 @@
 // src/pages/exchange-page/ExchangePage.tsx
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { ChainVisualizer } from '../../widgets/chain-visualizer/ui/ChainVisualizer';
-import type { IExchangeDeal } from '../../shared/api/types';
+import type { IExchangeDeal, IItem } from '../../shared/api/types';
 import { DealStatus, ChainLinkStatus, LogisticsStatus } from '../../shared/api/types';
 import { mockUsers } from '../../entities/user/api/userApi';
-import { mockItems } from '../../entities/item/api/itemApi';
+import { mockItems, itemApi } from '../../entities/item/api/itemApi';
 import { useAuthStore } from '../../app/hooks/useAuthStore';
+import { useStore } from '../../app/providers/StoreProvider';
+import { JoinChainModal } from '../../features/join-chain/ui/JoinChainModal';
+
+type FilterType = 'active' | 'completed' | 'cancelled' | 'all';
 
 export const ExchangePage = () => {
-  const { dealId } = useParams();
+  const { dealId } = useParams<{ dealId: string }>();
+  const navigate = useNavigate();
   const [deal, setDeal] = useState<IExchangeDeal | null>(null);
+  const [filter, setFilter] = useState<FilterType>('active');
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [targetItem, setTargetItem] = useState<IItem | null>(null);
+
   const authStore = useAuthStore();
-  const currentUserId = authStore.user?.id ?? 1; // Получаем ID текущего пользователя из стора
+  const store = useStore();
+  const currentUserId = authStore.user?.id ?? 1;
 
-// ... внутри ExchangePage ...
+  // Мок тестовых обменов для разных сценариев
+  const mockDeals: IExchangeDeal[] = [
+    // Активный обмен с участием текущего пользователя
+    {
+      id: 'deal-101',
+      status: DealStatus.CONFIRMING,
+      deadline: '2026-08-11T23:59:59Z',
+      initiatorId: currentUserId,
+      chain: [
+        {
+          userId: currentUserId,
+          user: mockUsers[currentUserId] || mockUsers[1],
+          status: ChainLinkStatus.ACCEPTED,
+          givingItemId: 102,
+          givingItem: mockItems.find(i => i.id === 102) || mockItems[0],
+          receivingItemId: 101,
+          receivingItem: mockItems.find(i => i.id === 101),
+          logisticsStatus: LogisticsStatus.NONE,
+        },
+        {
+          userId: 2,
+          user: mockUsers[2],
+          status: ChainLinkStatus.PENDING,
+          givingItemId: 101,
+          givingItem: mockItems.find(i => i.id === 101) || mockItems[0],
+          receivingItemId: 102,
+          receivingItem: mockItems.find(i => i.id === 102),
+          logisticsStatus: LogisticsStatus.NONE,
+        },
+      ],
+    },
+    // Завершенный обмен
+    {
+      id: 'deal-102',
+      status: DealStatus.COMPLETED,
+      deadline: '2026-07-01T23:59:59Z',
+      initiatorId: 2,
+      chain: [
+        {
+          userId: 2,
+          user: mockUsers[2],
+          status: ChainLinkStatus.ACCEPTED,
+          givingItemId: 201,
+          givingItem: mockItems.find(i => i.id === 201) || mockItems[0],
+          receivingItemId: 301,
+          receivingItem: mockItems.find(i => i.id === 301),
+          logisticsStatus: LogisticsStatus.COMPLETED,
+        },
+        {
+          userId: 3,
+          user: mockUsers[3],
+          status: ChainLinkStatus.ACCEPTED,
+          givingItemId: 301,
+          givingItem: mockItems.find(i => i.id === 301) || mockItems[0],
+          receivingItemId: 201,
+          receivingItem: mockItems.find(i => i.id === 201),
+          logisticsStatus: LogisticsStatus.COMPLETED,
+        },
+      ],
+    },
+    // Обмен в процессе логистики
+    {
+      id: 'deal-103',
+      status: DealStatus.ACTIVE,
+      deadline: '2026-08-15T23:59:59Z',
+      initiatorId: 4,
+      chain: [
+        {
+          userId: 4,
+          user: mockUsers[4],
+          status: ChainLinkStatus.ACCEPTED,
+          givingItemId: 401,
+          givingItem: mockItems.find(i => i.id === 401) || mockItems[0],
+          receivingItemId: 109,
+          receivingItem: mockItems.find(i => i.id === 109),
+          logisticsStatus: LogisticsStatus.DROPPED_OFF,
+        },
+        {
+          userId: 5,
+          user: mockUsers[5],
+          status: ChainLinkStatus.ACCEPTED,
+          givingItemId: 109,
+          givingItem: mockItems.find(i => i.id === 109) || mockItems[0],
+          receivingItemId: 401,
+          receivingItem: mockItems.find(i => i.id === 401),
+          logisticsStatus: LogisticsStatus.PENDING_DROP_OFF,
+        },
+      ],
+    },
+    // Отмененный обмен
+    {
+      id: 'deal-104',
+      status: DealStatus.CANCELLED,
+      deadline: '2026-06-01T23:59:59Z',
+      initiatorId: 3,
+      declineReason: 'Участник отказался от обмена',
+      chain: [
+        {
+          userId: 3,
+          user: mockUsers[3],
+          status: ChainLinkStatus.DECLINED,
+          givingItemId: 302,
+          givingItem: mockItems.find(i => i.id === 302) || mockItems[0],
+          receivingItemId: 110,
+          receivingItem: mockItems.find(i => i.id === 110),
+          logisticsStatus: LogisticsStatus.NONE,
+        },
+        {
+          userId: 5,
+          user: mockUsers[5],
+          status: ChainLinkStatus.WAITING,
+          givingItemId: 110,
+          givingItem: mockItems.find(i => i.id === 110) || mockItems[0],
+          receivingItemId: 302,
+          receivingItem: mockItems.find(i => i.id === 302),
+          logisticsStatus: LogisticsStatus.NONE,
+        },
+      ],
+    },
+  ];
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const mockDeal: IExchangeDeal = {
-        id: dealId || 'deal-101',
-        status: DealStatus.CONFIRMING,
-        deadline: '2026-08-11T23:59:59Z',
-        initiatorId: 3,
-        chain: [
-          // 1. Саша (Max_Gamer в моке пользователей, но пусть будет Саша по логике)
-          // Саша имеет Апельсин, хочет Велосипед. Отдает Апельсин Мне.
-          {
-            userId: 3,
-            user: { ...mockUsers[3], username: 'Sasha_Owner' }, // Переименуем для наглядности
-            status: ChainLinkStatus.ACCEPTED,
-            givingItemId: 111, // Апельсин
-            givingItem: {
-                id: 111, title: 'Апельсин', description: 'Сладкий', imageUrl: 'https://placehold.co/100/orange/white?text=Orange',
-                category: 'Еда', quantity: 1, unit: 'кг', authorId: 3, holderId: 3, isLocked: false, createdAt: ''
-            },
-            logisticsStatus: LogisticsStatus.NONE,
-          },
-          // 2. Я (Alex_Dev)
-          // Я имею Лодку, хочу Апельсин. Отдаю Лодку Максиму.
-          {
-            userId: currentUserId,
-            user: mockUsers[currentUserId] || mockUsers[1],
-            status: ChainLinkStatus.PENDING,
-            givingItemId: 112, // Лодка
-            givingItem: {
-                id: 112, title: 'Лодка ПВХ', description: 'Надувная', imageUrl: 'https://placehold.co/100/blue/white?text=Boat',
-                category: 'Спорт', quantity: 1, unit: 'шт', authorId: currentUserId, holderId: currentUserId, isLocked: false, createdAt: ''
-            },
-            logisticsStatus: LogisticsStatus.NONE,
-          },
-          // 3. Максим (Dima_Biker в моке, пусть будет Максим)
-          // Максим имеет Велосипед, хочет Лодку. Отдает Велосипед Саше.
-          {
-            userId: 2,
-            user: { ...mockUsers[2], username: 'Max_Biker' },
-            status: ChainLinkStatus.WAITING,
-            givingItemId: 101, // Велосипед
-            givingItem: mockItems.find(i => i.id === 101) || mockItems[0],
-            logisticsStatus: LogisticsStatus.NONE,
-          }
-        ]
-      };
-      setDeal(mockDeal);
-    }, 500);
+    // Загружаем обмены из store или используем мок
+    const deals = store.activeDeals.length > 0 ? store.activeDeals : mockDeals;
+    store.setDeals(deals);
 
-    return () => clearTimeout(timer);
+    if (dealId) {
+      const foundDeal = deals.find(d => d.id === dealId);
+      if (foundDeal) {
+        setDeal(foundDeal);
+      } else {
+        // Если сделка не найдена, создаем мок
+        const timer = setTimeout(() => {
+          setDeal(mockDeals[0]);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
   }, [dealId]);
 
-  if (!deal) {
+  const filteredDeals = mockDeals.filter(deal => {
+    const isInChain = deal.chain.some(link => link.userId === currentUserId);
+    if (!isInChain) return false;
+
+    if (filter === 'active') {
+      return deal.status !== DealStatus.COMPLETED && deal.status !== DealStatus.CANCELLED;
+    }
+    if (filter === 'completed') {
+      return deal.status === DealStatus.COMPLETED;
+    }
+    if (filter === 'cancelled') {
+      return deal.status === DealStatus.CANCELLED;
+    }
+    return true;
+  });
+
+  const handleJoinChain = (item: IItem) => {
+    setTargetItem(item);
+    setShowJoinModal(true);
+  };
+
+  const handleDealConfirmed = () => {
+    setShowJoinModal(false);
+    // После подтверждения создаем новый обмен
+    // В реальном приложении здесь был бы API вызов
+    navigate('/exchange/active');
+  };
+
+  // Если указан dealId, показываем детальную страницу
+  if (dealId && deal) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00AAFF]"></div>
-        <p className="text-gray-500">Загрузка схемы обмена...</p>
-      </div>
+      <>
+        <div className="max-w-5xl mx-auto space-y-6 pb-20">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <button
+              onClick={() => navigate('/exchange')}
+              className="hover:text-[#00AAFF] cursor-pointer flex items-center gap-1"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Мои обмены
+            </button>
+            <span>/</span>
+            <span className="text-gray-900 font-medium">Сделка #{deal.id}</span>
+          </div>
+
+          <ChainVisualizer
+            deal={deal}
+            currentUserId={currentUserId}
+          />
+
+          {/* Информация об обмене */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200">
+            <h3 className="font-bold text-gray-900 mb-4">Детали обмена</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs text-gray-500 uppercase">Статус</p>
+                <p className="font-medium text-gray-900">
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    deal.status === DealStatus.COMPLETED ? 'bg-green-100 text-green-700' :
+                    deal.status === DealStatus.CANCELLED ? 'bg-red-100 text-red-700' :
+                    deal.status === DealStatus.ACTIVE ? 'bg-blue-100 text-blue-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {deal.status}
+                  </span>
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase">Участников</p>
+                <p className="font-medium text-gray-900">{deal.chain.length}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase">Дедлайн</p>
+                <p className="font-medium text-gray-900">
+                  {new Date(deal.deadline).toLocaleDateString('ru-RU')}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase">Инициатор</p>
+                <p className="font-medium text-gray-900">
+                  {mockUsers[deal.initiatorId]?.username || 'Неизвестно'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Список участников с профилями */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200">
+            <h3 className="font-bold text-gray-900 mb-4">Участники сделки</h3>
+            <div className="space-y-3">
+              {deal.chain.map((link, index) => (
+                <div
+                  key={link.userId}
+                  className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/user/${link.userId}`)}
+                >
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-600 text-lg font-bold overflow-hidden">
+                    {link.user.avatarUrl ? (
+                      <img src={link.user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      link.user.username.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{link.user.username}</p>
+                    <p className="text-sm text-gray-500">
+                      Отдает: <span className="font-medium">{link.givingItem.title}</span>
+                    </p>
+                    {link.receivingItem && (
+                      <p className="text-sm text-gray-500">
+                        Получает: <span className="font-medium">{link.receivingItem.title}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      link.status === ChainLinkStatus.ACCEPTED ? 'bg-green-100 text-green-700' :
+                      link.status === ChainLinkStatus.DECLINED ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {link.status}
+                    </span>
+                    {index === 0 && (
+                      <span className="ml-2 px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700">
+                        Инициатор
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {showJoinModal && targetItem && (
+          <JoinChainModal
+            targetItem={targetItem}
+            onClose={() => setShowJoinModal(false)}
+            onConfirm={handleDealConfirmed}
+          />
+        )}
+      </>
     );
   }
 
+  // Главная страница обменов со списком и фильтром
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
-      <div className="flex items-center gap-2 text-sm text-gray-500">
-        <Link to="/exchange/active" className="hover:text-[#00AAFF]">Мои обмены</Link>
-        <span>/</span>
-        <span className="text-gray-900 font-medium">Сделка #{deal.id}</span>
+      {/* Заголовок */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Мои обмены</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Отслеживайте текущие и прошедшие обмены
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/')}
+          className="px-4 py-2 bg-[#00AAFF] text-white rounded-lg text-sm font-medium hover:bg-[#0095E0] transition-colors shadow-sm flex items-center gap-2"
+        >
+          <span>+</span> Создать обмен
+        </button>
       </div>
 
-      <ChainVisualizer
-        deal={deal}
-        currentUserId={currentUserId}
-      />
-
-      <div className="bg-white p-6 rounded-xl border border-gray-200 opacity-60 grayscale pointer-events-none relative overflow-hidden">
-        <div className="absolute inset-0 bg-gray-50/50 z-10 flex items-center justify-center">
-           <span className="bg-white px-3 py-1 rounded shadow-sm text-xs font-bold text-gray-500 border border-gray-200">
-             Логистика начнется после подтверждения всех участников
-           </span>
-        </div>
-        <h3 className="font-bold text-gray-900 mb-6">Трекинг ПВЗ</h3>
-        <div className="flex justify-between text-sm text-gray-500 px-4">
-            <div className="flex flex-col items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg">📦</div>
-                <span>Сдача в ПВЗ</span>
-            </div>
-            <div className="flex-1 h-0.5 bg-gray-200 mt-5 mx-4"></div>
-            <div className="flex flex-col items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg">🔍</div>
-                <span>Проверка</span>
-            </div>
-            <div className="flex-1 h-0.5 bg-gray-200 mt-5 mx-4"></div>
-            <div className="flex flex-col items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg">🏁</div>
-                <span>Получение</span>
-            </div>
-        </div>
+      {/* Фильтр */}
+      <div className="flex gap-2 bg-white p-2 rounded-xl border border-gray-200">
+        {(['active', 'completed', 'cancelled', 'all'] as FilterType[]).map((filterType) => (
+          <button
+            key={filterType}
+            onClick={() => setFilter(filterType)}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              filter === filterType
+                ? 'bg-[#00AAFF] text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            {filterType === 'active' && 'Активные'}
+            {filterType === 'completed' && 'Завершенные'}
+            {filterType === 'cancelled' && 'Отмененные'}
+            {filterType === 'all' && 'Все обмены'}
+          </button>
+        ))}
       </div>
+
+      {/* Список обменов */}
+      {filteredDeals.length === 0 ? (
+        <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+            📦
+          </div>
+          <p className="text-gray-500 font-medium">Обменов не найдено</p>
+          <p className="text-gray-400 text-sm mt-1">
+            {filter === 'active' ? 'У вас нет активных обменов' :
+             filter === 'completed' ? 'У вас нет завершенных обменов' :
+             filter === 'cancelled' ? 'У вас нет отмененных обменов' :
+             'Создайте свой первый обмен'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredDeals.map((deal) => {
+            const currentUserLink = deal.chain.find(link => link.userId === currentUserId);
+            const givingItem = currentUserLink?.givingItem;
+            const receivingItem = currentUserLink?.receivingItem ||
+                                  deal.chain.find(link => link.userId === deal.initiatorId)?.givingItem;
+
+            return (
+              <div
+                key={deal.id}
+                onClick={() => navigate(`/exchange/${deal.id}`)}
+                className="group bg-white hover:bg-blue-50/30 p-6 rounded-2xl border border-gray-200 hover:border-[#00AAFF] transition-all cursor-pointer shadow-sm"
+              >
+                <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+                  {/* Товары */}
+                  <div className="flex items-center gap-4 w-full lg:w-auto justify-center">
+                    {givingItem && (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-100 bg-gray-50 shadow-inner">
+                          <img
+                            src={givingItem.imageUrl}
+                            alt={givingItem.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                          Отдаете
+                        </span>
+                        <span className="text-sm font-bold text-gray-900 text-center leading-tight max-w-[100px] truncate">
+                          {givingItem.title}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col items-center justify-center px-2">
+                      <div className="text-2xl text-[#00AAFF] group-hover:animate-pulse">⇄</div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                        Обмен
+                      </span>
+                    </div>
+
+                    {receivingItem && (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-green-100 bg-green-50 shadow-inner">
+                          <img
+                            src={receivingItem.imageUrl}
+                            alt={receivingItem.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-green-600 uppercase tracking-wide">
+                          Получаете
+                        </span>
+                        <span className="text-sm font-bold text-gray-900 text-center leading-tight max-w-[100px] truncate">
+                          {receivingItem.title}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Информация */}
+                  <div className="flex flex-col items-center lg:items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-gray-100 pt-4 lg:pt-0 lg:pl-6">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase border ${
+                        deal.status === DealStatus.COMPLETED ? 'bg-green-100 text-green-700 border-green-200' :
+                        deal.status === DealStatus.CANCELLED ? 'bg-red-100 text-red-700 border-red-200' :
+                        deal.status === DealStatus.ACTIVE ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                        'bg-yellow-100 text-yellow-700 border-yellow-200'
+                      }`}>
+                        {deal.status === DealStatus.COMPLETED && 'Завершен'}
+                        {deal.status === DealStatus.CANCELLED && 'Отменен'}
+                        {deal.status === DealStatus.ACTIVE && 'Активен'}
+                        {deal.status === DealStatus.CONFIRMING && 'Подтверждение'}
+                        {deal.status === DealStatus.PENDING && 'Ожидание'}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-500 text-center lg:text-right">
+                      Участников: <span className="font-bold text-gray-900">{deal.chain.length}</span>{' '}
+                      • Дедлайн:{' '}
+                      <span className="font-bold text-gray-900">
+                        {new Date(deal.deadline).toLocaleDateString('ru-RU')}
+                      </span>
+                    </div>
+                    <button className="mt-1 px-6 py-2.5 bg-gray-100 group-hover:bg-[#00AAFF] group-hover:text-white text-gray-700 rounded-xl text-sm font-bold transition-all w-full lg:w-auto shadow-sm">
+                      Подробнее
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

@@ -9,6 +9,7 @@ import { CreateItemForm } from "../../features/create-item/ui/CreateItemForm";
 import { EditItemForm } from "../../features/edit-item/ui/EditItemForm";
 import { SuccessSticker } from "../../shared/ui/SuccessSticker";
 import { authApi } from "../../shared/api/authApi";
+import { MyDealsTab } from "../../features/my-deals/ui/MyDealsTab";
 
 type Tab = "items" | "wishes" | "deals" | "settings";
 
@@ -355,72 +356,7 @@ export const ProfilePage = () => {
 
         {/* Вкладка: Мои сделки */}
         {activeTab === "deals" && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-bold text-gray-900">
-                Активные обмены
-              </h2>
-            </div>
-
-            <div
-              onClick={() => navigate("/exchange/deal-101")}
-              className="group bg-white hover:bg-blue-50/30 p-6 rounded-2xl border border-gray-200 hover:border-[#00AAFF] transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm"
-            >
-              <div className="flex items-center gap-4 flex-1 w-full sm:w-auto justify-center sm:justify-start">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-100 bg-gray-50 shadow-inner">
-                    <img
-                      src="https://placehold.co/100/blue/white?text=Boat"
-                      alt="Лодка"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                    Отдаете
-                  </span>
-                  <span className="text-sm font-bold text-gray-900 text-center leading-tight max-w-[100px] truncate">
-                    Лодка ПВХ
-                  </span>
-                </div>
-                <div className="flex flex-col items-center justify-center px-2">
-                  <div className="text-2xl text-[#00AAFF] animate-pulse">⇄</div>
-                  <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">
-                    Обмен
-                  </span>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-green-100 bg-green-50 shadow-inner">
-                    <img
-                      src="https://placehold.co/100/orange/white?text=Orange"
-                      alt="Апельсин"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <span className="text-xs font-bold text-green-600 uppercase tracking-wide">
-                    Получаете
-                  </span>
-                  <span className="text-sm font-bold text-gray-900 text-center leading-tight max-w-[100px] truncate">
-                    Апельсин
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col items-center sm:items-end gap-3 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-gray-100 pt-4 sm:pt-0 sm:pl-6">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase border border-yellow-200">
-                    Подтверждение
-                  </span>
-                </div>
-                <div className="text-sm text-gray-500 text-center sm:text-right">
-                  Участников: <span className="font-bold text-gray-900">3</span>{" "}
-                  • Дедлайн:{" "}
-                  <span className="font-bold text-gray-900">11 авг</span>
-                </div>
-                <button className="mt-1 px-6 py-2.5 bg-gray-100 group-hover:bg-[#00AAFF] group-hover:text-white text-gray-700 rounded-xl text-sm font-bold transition-all w-full sm:w-auto shadow-sm">
-                  Подробнее о цепочке
-                </button>
-              </div>
-            </div>
-          </div>
+          <MyDealsTab currentUserId={currentUser.id} />
         )}
 
         {/* Вкладка: Настройки */}
