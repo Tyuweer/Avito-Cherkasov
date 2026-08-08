@@ -1,23 +1,31 @@
 // src/pages/exchange-page/ExchangePage.tsx
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import { ChainVisualizer } from '../../widgets/chain-visualizer/ui/ChainVisualizer';
-import type { IExchangeDeal, IItem } from '../../shared/api/types';
-import { DealStatus, ChainLinkStatus, LogisticsStatus } from '../../shared/api/types';
-import { mockUsers } from '../../entities/user/api/userApi';
-import { mockItems, itemApi, getItemsByUserId } from '../../entities/item/api/itemApi';
-import { useAuthStore } from '../../app/hooks/useAuthStore';
-import { useStore } from '../../app/providers/StoreProvider';
-import { JoinChainModal } from '../../features/join-chain/ui/JoinChainModal';
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { ArrowLeft } from "lucide-react";
+import { ChainVisualizer } from "../../widgets/chain-visualizer/ui/ChainVisualizer";
+import type { IExchangeDeal, IItem } from "../../shared/api/types";
+import {
+  DealStatus,
+  ChainLinkStatus,
+  LogisticsStatus,
+} from "../../shared/api/types";
+import { mockUsers } from "../../entities/user/api/userApi";
+import {
+  mockItems,
+  itemApi,
+  getItemsByUserId,
+} from "../../entities/item/api/itemApi";
+import { useAuthStore } from "../../app/hooks/useAuthStore";
+import { useStore } from "../../app/providers/StoreProvider";
+import { JoinChainModal } from "../../features/join-chain/ui/JoinChainModal";
 
-type FilterType = 'active' | 'completed' | 'cancelled' | 'all';
+type FilterType = "active" | "completed" | "cancelled" | "all";
 
 export const ExchangePage = () => {
   const { dealId } = useParams<{ dealId: string }>();
   const navigate = useNavigate();
   const [deal, setDeal] = useState<IExchangeDeal | null>(null);
-  const [filter, setFilter] = useState<FilterType>('active');
+  const [filter, setFilter] = useState<FilterType>("active");
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [targetItem, setTargetItem] = useState<IItem | null>(null);
 
@@ -27,7 +35,10 @@ export const ExchangePage = () => {
 
   // Фильтруем товары - оставляем только те, где currentUserId является authorId или holderId
   const myItems = useMemo(() => {
-    return mockItems.filter(item => item.authorId === currentUserId || item.holderId === currentUserId);
+    return mockItems.filter(
+      (item) =>
+        item.authorId === currentUserId || item.holderId === currentUserId,
+    );
   }, [currentUserId]);
 
   // Массив сделок теперь берется только из store
@@ -36,7 +47,7 @@ export const ExchangePage = () => {
 
   useEffect(() => {
     if (dealId) {
-      const foundDeal = allDeals.find(d => d.id === dealId);
+      const foundDeal = allDeals.find((d) => d.id === dealId);
       if (foundDeal) {
         setDeal(foundDeal);
       } else {
@@ -46,17 +57,20 @@ export const ExchangePage = () => {
     }
   }, [dealId, allDeals]);
 
-  const filteredDeals = allDeals.filter(deal => {
-    const isInChain = deal.chain.some(link => link.userId === currentUserId);
+  const filteredDeals = allDeals.filter((deal) => {
+    const isInChain = deal.chain.some((link) => link.userId === currentUserId);
     if (!isInChain) return false;
 
-    if (filter === 'active') {
-      return deal.status !== DealStatus.COMPLETED && deal.status !== DealStatus.CANCELLED;
+    if (filter === "active") {
+      return (
+        deal.status !== DealStatus.COMPLETED &&
+        deal.status !== DealStatus.CANCELLED
+      );
     }
-    if (filter === 'completed') {
+    if (filter === "completed") {
       return deal.status === DealStatus.COMPLETED;
     }
-    if (filter === 'cancelled') {
+    if (filter === "cancelled") {
       return deal.status === DealStatus.CANCELLED;
     }
     return true;
@@ -67,42 +81,11 @@ export const ExchangePage = () => {
     setShowJoinModal(true);
   };
 
-  const handleDealConfirmed = () => {
+  const handleDealConfirmed = (deal: IExchangeDeal) => {
     setShowJoinModal(false);
-
-    // Создаем новую сделку с выбранным товаром
-    if (targetItem) {
-      // Находим товар, который пользователь хочет получить (первый доступный товар от другого пользователя)
-      const availableItems = mockItems.filter(i => i.authorId !== currentUserId && !i.isLocked);
-      const receivingItem = availableItems.length > 0 ? availableItems[0] : null;
-
-      const newDeal: IExchangeDeal = {
-        id: `deal-${Date.now()}`,
-        status: DealStatus.CONFIRMING,
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // +7 дней
-        initiatorId: currentUserId,
-        chain: [
-          {
-            userId: currentUserId,
-            user: mockUsers[currentUserId] || mockUsers[1],
-            status: ChainLinkStatus.ACCEPTED,
-            givingItemId: targetItem.id,
-            givingItem: targetItem,
-            receivingItemId: receivingItem?.id ?? undefined,
-            receivingItem: receivingItem ?? undefined,
-            logisticsStatus: LogisticsStatus.NONE,
-          },
-        ],
-      };
-
-      // Блокируем товар, который участвует в сделке
-      itemApi.lockItem(targetItem.id);
-
-      // Добавляем сделку в store
-      store.setDeals([...store.activeDeals, newDeal]);
-    }
-
-    navigate('/exchange');
+    // Сделка уже создана в JoinChainModal и добавлена в store
+    // Просто перенаправляем на страницу созданной сделки
+    navigate(`/exchange/${deal.id}`);
   };
 
   // Если указан dealId, показываем детальную страницу
@@ -112,7 +95,7 @@ export const ExchangePage = () => {
         <div className="max-w-5xl mx-auto space-y-6 pb-20">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <button
-              onClick={() => navigate('/exchange')}
+              onClick={() => navigate("/exchange")}
               className="hover:text-[#00AAFF] cursor-pointer flex items-center gap-1"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -122,10 +105,7 @@ export const ExchangePage = () => {
             <span className="text-gray-900 font-medium">Сделка #{deal.id}</span>
           </div>
 
-          <ChainVisualizer
-            deal={deal}
-            currentUserId={currentUserId}
-          />
+          <ChainVisualizer deal={deal} currentUserId={currentUserId} />
 
           {/* Информация об обмене */}
           <div className="bg-white p-6 rounded-xl border border-gray-200">
@@ -134,12 +114,17 @@ export const ExchangePage = () => {
               <div>
                 <p className="text-xs text-gray-500 uppercase">Статус</p>
                 <p className="font-medium text-gray-900">
-                  <span className={`px-2 py-1 rounded-full text-xs ${
-                    deal.status === DealStatus.COMPLETED ? 'bg-green-100 text-green-700' :
-                    deal.status === DealStatus.CANCELLED ? 'bg-red-100 text-red-700' :
-                    deal.status === DealStatus.ACTIVE ? 'bg-blue-100 text-blue-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${
+                      deal.status === DealStatus.COMPLETED
+                        ? "bg-green-100 text-green-700"
+                        : deal.status === DealStatus.CANCELLED
+                          ? "bg-red-100 text-red-700"
+                          : deal.status === DealStatus.ACTIVE
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
                     {deal.status}
                   </span>
                 </p>
@@ -151,13 +136,13 @@ export const ExchangePage = () => {
               <div>
                 <p className="text-xs text-gray-500 uppercase">Дедлайн</p>
                 <p className="font-medium text-gray-900">
-                  {new Date(deal.deadline).toLocaleDateString('ru-RU')}
+                  {new Date(deal.deadline).toLocaleDateString("ru-RU")}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase">Инициатор</p>
                 <p className="font-medium text-gray-900">
-                  {mockUsers[deal.initiatorId]?.username || 'Неизвестно'}
+                  {mockUsers[deal.initiatorId]?.username || "Неизвестно"}
                 </p>
               </div>
             </div>
@@ -175,28 +160,44 @@ export const ExchangePage = () => {
                 >
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-600 text-lg font-bold overflow-hidden">
                     {link.user.avatarUrl ? (
-                      <img src={link.user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={link.user.avatarUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       link.user.username.charAt(0).toUpperCase()
                     )}
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{link.user.username}</p>
+                    <p className="font-medium text-gray-900">
+                      {link.user.username}
+                    </p>
                     <p className="text-sm text-gray-500">
-                      Отдает: <span className="font-medium">{link.givingItem.title}</span>
+                      Отдает:{" "}
+                      <span className="font-medium">
+                        {link.givingItem.title}
+                      </span>
                     </p>
                     {link.receivingItem && (
                       <p className="text-sm text-gray-500">
-                        Получает: <span className="font-medium">{link.receivingItem.title}</span>
+                        Получает:{" "}
+                        <span className="font-medium">
+                          {link.receivingItem.title}
+                        </span>
                       </p>
                     )}
                   </div>
                   <div className="text-right">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      link.status === ChainLinkStatus.ACCEPTED ? 'bg-green-100 text-green-700' :
-                      link.status === ChainLinkStatus.DECLINED ? 'bg-red-100 text-red-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        link.status === ChainLinkStatus.ACCEPTED
+                          ? "bg-green-100 text-green-700"
+                          : link.status === ChainLinkStatus.DECLINED
+                            ? "bg-red-100 text-red-700"
+                            : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
                       {link.status}
                     </span>
                     {index === 0 && (
@@ -234,7 +235,7 @@ export const ExchangePage = () => {
           </p>
         </div>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           className="px-4 py-2 bg-[#00AAFF] text-white rounded-lg text-sm font-medium hover:bg-[#0095E0] transition-colors shadow-sm flex items-center gap-2"
         >
           <span>+</span> Создать обмен
@@ -243,22 +244,24 @@ export const ExchangePage = () => {
 
       {/* Фильтр */}
       <div className="flex gap-2 bg-white p-2 rounded-xl border border-gray-200">
-        {(['active', 'completed', 'cancelled', 'all'] as FilterType[]).map((filterType) => (
-          <button
-            key={filterType}
-            onClick={() => setFilter(filterType)}
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === filterType
-                ? 'bg-[#00AAFF] text-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            {filterType === 'active' && 'Активные'}
-            {filterType === 'completed' && 'Завершенные'}
-            {filterType === 'cancelled' && 'Отмененные'}
-            {filterType === 'all' && 'Все обмены'}
-          </button>
-        ))}
+        {(["active", "completed", "cancelled", "all"] as FilterType[]).map(
+          (filterType) => (
+            <button
+              key={filterType}
+              onClick={() => setFilter(filterType)}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filter === filterType
+                  ? "bg-[#00AAFF] text-white shadow-sm"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              {filterType === "active" && "Активные"}
+              {filterType === "completed" && "Завершенные"}
+              {filterType === "cancelled" && "Отмененные"}
+              {filterType === "all" && "Все обмены"}
+            </button>
+          ),
+        )}
       </div>
 
       {/* Список обменов */}
@@ -269,19 +272,26 @@ export const ExchangePage = () => {
           </div>
           <p className="text-gray-500 font-medium">Обменов не найдено</p>
           <p className="text-gray-400 text-sm mt-1">
-            {filter === 'active' ? 'У вас нет активных обменов' :
-             filter === 'completed' ? 'У вас нет завершенных обменов' :
-             filter === 'cancelled' ? 'У вас нет отмененных обменов' :
-             'Создайте свой первый обмен'}
+            {filter === "active"
+              ? "У вас нет активных обменов"
+              : filter === "completed"
+                ? "У вас нет завершенных обменов"
+                : filter === "cancelled"
+                  ? "У вас нет отмененных обменов"
+                  : "Создайте свой первый обмен"}
           </p>
         </div>
       ) : (
         <div className="space-y-4">
           {filteredDeals.map((deal) => {
-            const currentUserLink = deal.chain.find(link => link.userId === currentUserId);
+            const currentUserLink = deal.chain.find(
+              (link) => link.userId === currentUserId,
+            );
             const givingItem = currentUserLink?.givingItem;
-            const receivingItem = currentUserLink?.receivingItem ||
-                                  deal.chain.find(link => link.userId === deal.initiatorId)?.givingItem;
+            const receivingItem =
+              currentUserLink?.receivingItem ||
+              deal.chain.find((link) => link.userId === deal.initiatorId)
+                ?.givingItem;
 
             return (
               <div
@@ -311,7 +321,9 @@ export const ExchangePage = () => {
                     )}
 
                     <div className="flex flex-col items-center justify-center px-2">
-                      <div className="text-2xl text-[#00AAFF] group-hover:animate-pulse">⇄</div>
+                      <div className="text-2xl text-[#00AAFF] group-hover:animate-pulse">
+                        ⇄
+                      </div>
                       <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">
                         Обмен
                       </span>
@@ -339,24 +351,33 @@ export const ExchangePage = () => {
                   {/* Информация */}
                   <div className="flex flex-col items-center lg:items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-gray-100 pt-4 lg:pt-0 lg:pl-6">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase border ${
-                        deal.status === DealStatus.COMPLETED ? 'bg-green-100 text-green-700 border-green-200' :
-                        deal.status === DealStatus.CANCELLED ? 'bg-red-100 text-red-700 border-red-200' :
-                        deal.status === DealStatus.ACTIVE ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                        'bg-yellow-100 text-yellow-700 border-yellow-200'
-                      }`}>
-                        {deal.status === DealStatus.COMPLETED && 'Завершен'}
-                        {deal.status === DealStatus.CANCELLED && 'Отменен'}
-                        {deal.status === DealStatus.ACTIVE && 'Активен'}
-                        {deal.status === DealStatus.CONFIRMING && 'Подтверждение'}
-                        {deal.status === DealStatus.PENDING && 'Ожидание'}
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase border ${
+                          deal.status === DealStatus.COMPLETED
+                            ? "bg-green-100 text-green-700 border-green-200"
+                            : deal.status === DealStatus.CANCELLED
+                              ? "bg-red-100 text-red-700 border-red-200"
+                              : deal.status === DealStatus.ACTIVE
+                                ? "bg-blue-100 text-blue-700 border-blue-200"
+                                : "bg-yellow-100 text-yellow-700 border-yellow-200"
+                        }`}
+                      >
+                        {deal.status === DealStatus.COMPLETED && "Завершен"}
+                        {deal.status === DealStatus.CANCELLED && "Отменен"}
+                        {deal.status === DealStatus.ACTIVE && "Активен"}
+                        {deal.status === DealStatus.CONFIRMING &&
+                          "Подтверждение"}
+                        {deal.status === DealStatus.PENDING && "Ожидание"}
                       </span>
                     </div>
                     <div className="text-sm text-gray-500 text-center lg:text-right">
-                      Участников: <span className="font-bold text-gray-900">{deal.chain.length}</span>{' '}
-                      • Дедлайн:{' '}
+                      Участников:{" "}
                       <span className="font-bold text-gray-900">
-                        {new Date(deal.deadline).toLocaleDateString('ru-RU')}
+                        {deal.chain.length}
+                      </span>{" "}
+                      • Дедлайн:{" "}
+                      <span className="font-bold text-gray-900">
+                        {new Date(deal.deadline).toLocaleDateString("ru-RU")}
                       </span>
                     </div>
                     <button className="mt-1 px-6 py-2.5 bg-gray-100 group-hover:bg-[#00AAFF] group-hover:text-white text-gray-700 rounded-xl text-sm font-bold transition-all w-full lg:w-auto shadow-sm">

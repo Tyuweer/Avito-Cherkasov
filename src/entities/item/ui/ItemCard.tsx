@@ -23,11 +23,11 @@ export const ItemCard = ({ item }: ItemCardProps) => {
       onClick={handleClick}
       className="cursor-pointer relative bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col h-full"
     >
-      {item.isLocked && (
+      {/* {item.isLocked && (
         <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10 shadow-sm">
           В сделке
         </div>
-      )}
+      )} */}
 
       <div className="h-48 bg-gray-100 w-full relative overflow-hidden">
         <img 

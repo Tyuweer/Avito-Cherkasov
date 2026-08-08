@@ -1,18 +1,20 @@
 // src/features/join-chain/ui/JoinChainModal.tsx
 import { useState, useEffect } from 'react';
-import type { IItem } from '../../../shared/api/types';
+import type { IItem, IExchangeDeal } from '../../../shared/api/types';
 import { itemApi } from '../../../entities/item/api/itemApi';
 import { useAuthStore } from '../../../app/hooks/useAuthStore';
+import { useStore } from '../../../app/providers/StoreProvider';
 // Убрали импорт ItemCard и SuccessSticker, так как стикер теперь показывается в ItemPage
 
 interface JoinChainModalProps {
   targetItem: IItem; // Товар, который мы хотим получить
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (deal: IExchangeDeal) => void;
 }
 
 export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModalProps) => {
   const authStore = useAuthStore();
+  const store = useStore();
   const currentUserId = authStore.user?.id ?? 1;
 
   const [myItems, setMyItems] = useState<IItem[]>([]);
@@ -51,14 +53,19 @@ export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModa
 
     setIsSubmitting(true);
     try {
-      // Вызываем метод chown для каждого выбранного товара
-      for (const itemId of selectedIds) {
-        await itemApi.transferRight(itemId, targetItem.holderId);
-      }
-      // Закрываем модалку сразу
+      // Получаем полные данные о выбранных товарах
+      const selectedItems = myItems.filter(item => selectedIds.includes(item.id));
+
+      // Создаем сделку через API
+      const newDeal = await itemApi.createDeal(currentUserId, targetItem, selectedItems);
+
+      // Добавляем сделку в store
+      store.setDeals([...store.activeDeals, newDeal]);
+
+      // Закрываем модалку
       onClose();
-      // onConfirm вызывается после закрытия модалки
-      onConfirm();
+      // Вызываем onConfirm с созданной сделкой
+      onConfirm(newDeal);
     } catch (error) {
       console.error(error);
     } finally {

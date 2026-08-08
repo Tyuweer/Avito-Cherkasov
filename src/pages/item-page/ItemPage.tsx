@@ -89,11 +89,11 @@ export const ItemPage = () => {
           <div className="bg-gray-50 p-6 flex flex-col gap-4 border-r border-gray-100">
             <div className="aspect-square rounded-xl overflow-hidden bg-white shadow-inner relative group">
               <img src={mainImage} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              {item.isLocked && (
+              {/* {item.isLocked && (
                   <div className="absolute top-4 right-4 bg-red-500/90 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
                       Товар в сделке
                   </div>
-              )}
+              )} */}
             </div>
 
             {item.images && item.images.length > 1 && (
@@ -227,10 +227,12 @@ export const ItemPage = () => {
         <JoinChainModal
             targetItem={item}
             onClose={() => setIsJoinModalOpen(false)}
-            onConfirm={() => {
+            onConfirm={(deal) => {
                 setIsJoinModalOpen(false);
-                setStickerMessage('Вы успешно вступили в цепочку!');
+                setStickerMessage(`Сделка #${deal.id} создана! Вы вступили в цепочку обмена.`);
                 setShowSticker(true);
+                // Перенаправляем на страницу сделки
+                navigate(`/exchange/${deal.id}`);
             }}
         />
       )}

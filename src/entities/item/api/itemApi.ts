@@ -1,5 +1,7 @@
 // src/entities/item/api/itemApi.ts
-import type { IItem } from '../../../shared/api/types';
+import type { IItem, IExchangeDeal, IChainLink, IUser } from '../../../shared/api/types';
+import { DealStatus, ChainLinkStatus, LogisticsStatus } from '../../../shared/api/types';
+import { mockUsers } from '../../user/api/userApi';
 // import { apiClient } from '../../../shared/api/client';
 
 // Items organized by user (authorId)
@@ -271,5 +273,72 @@ export const itemApi = {
     if (index !== -1) {
       mockItems[index].isLocked = false;
     }
+  },
+
+  // Создаем новую сделку с цепочкой обмена
+  createDeal: async (
+    initiatorId: number,
+    targetItem: IItem,
+    selectedGivingItems: IItem[]
+  ): Promise<IExchangeDeal> => {
+    await new Promise(r => setTimeout(r, 500));
+
+    // Находим товар, который инициатор хочет получить (targetItem)
+    // И формируем цепочку из выбранных товаров которые инициатор отдает
+    const chain: IChainLink[] = [];
+
+    // Первое звено - инициатор (отдает свои товары, получает targetItem)
+    // Для простоты берем первый товар из selectedGivingItems как основной
+    const givingItem = selectedGivingItems[0];
+
+    // Находим кто владеет targetItem (его holderId)
+    const targetOwner = mockUsers[targetItem.holderId] || mockUsers[1];
+
+    // Звено инициатора
+    chain.push({
+      userId: initiatorId,
+      user: mockUsers[initiatorId] || mockUsers[1],
+      status: ChainLinkStatus.ACCEPTED,
+      givingItemId: givingItem.id,
+      givingItem: givingItem,
+      receivingItemId: targetItem.id,
+      receivingItem: targetItem,
+      logisticsStatus: LogisticsStatus.NONE,
+    });
+
+    // Второе звено - владелец targetItem (отдает targetItem, получает givingItem)
+    chain.push({
+      userId: targetItem.holderId,
+      user: targetOwner,
+      status: ChainLinkStatus.PENDING,
+      givingItemId: targetItem.id,
+      givingItem: targetItem,
+      receivingItemId: givingItem.id,
+      receivingItem: givingItem,
+      logisticsStatus: LogisticsStatus.NONE,
+    });
+
+    // Блокируем все товары в сделке
+    selectedGivingItems.forEach(item => {
+      const idx = mockItems.findIndex(i => i.id === item.id);
+      if (idx !== -1) {
+        mockItems[idx].isLocked = true;
+      }
+    });
+
+    const targetIdx = mockItems.findIndex(i => i.id === targetItem.id);
+    if (targetIdx !== -1) {
+      mockItems[targetIdx].isLocked = true;
+    }
+
+    const newDeal: IExchangeDeal = {
+      id: `deal-${Date.now()}`,
+      status: DealStatus.CONFIRMING,
+      deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      initiatorId,
+      chain,
+    };
+
+    return newDeal;
   }
 };
