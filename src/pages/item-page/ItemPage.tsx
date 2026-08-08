@@ -5,10 +5,9 @@ import { mockItems } from '../../entities/item/api/itemApi';
 import { mockUsers } from '../../entities/user/api/userApi';
 import type { IItem } from '../../shared/api/types';
 import { UserBadge } from '../../entities/user/ui/UserBadge';
-import { JoinChainModal } from '../../features/join-chain/ui/JoinChainModal';
 import { useAuthStore } from '../../app/hooks/useAuthStore';
-import { getAvailableItemsForUser } from '../../entities/item/api/itemApi';
 import { SuccessSticker } from '../../shared/ui/SuccessSticker';
+import { ExchangeActionBtn } from '../../features/exchange-action/ui/ExchangeActionBtn';
 
 export const ItemPage = () => {
   const { id } = useParams();
@@ -16,16 +15,10 @@ export const ItemPage = () => {
   const authStore = useAuthStore();
   const [item, setItem] = useState<IItem | null>(null);
   const [mainImage, setMainImage] = useState('');
-  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [showSticker, setShowSticker] = useState(false);
   const [stickerMessage, setStickerMessage] = useState('');
 
   const currentUser = authStore.user;
-  const isAuthenticated = authStore.isAuthenticated;
-
-  // Get user's available items for exchange
-  const myAvailableItems = currentUser ? getAvailableItemsForUser(currentUser.id) : [];
-  const hasItemsToExchange = myAvailableItems.length > 0;
 
   useEffect(() => {
     const found = mockItems.find(i => i.id === Number(id));
@@ -42,38 +35,10 @@ export const ItemPage = () => {
   // Check if current user is the holder (has exclusive rights) or author
   const isMyItem = currentUser && (item.holderId === currentUser.id || item.authorId === currentUser.id);
 
-  // Check if I have what the owner wants (for direct exchange)
-  const hasDesiredItem = item.wishes?.some(wish =>
-    myAvailableItems.some(myItem =>
-      myItem.title.toLowerCase().includes(wish.toLowerCase()) ||
-      wish.toLowerCase().includes(myItem.title.toLowerCase())
-    )
-  );
-
-  const handleDirectExchange = () => {
-    if (!isAuthenticated) {
-      navigate('/auth', { state: { from: `/item/${id}` } });
-      return;
-    }
-    if (hasDesiredItem) {
-      setStickerMessage('Заявка на прямой обмен отправлена! Владелец получил уведомление.');
-      setShowSticker(true);
-    } else {
-      setIsJoinModalOpen(true);
-    }
-  };
-
-  const handleJoinChain = () => {
-    if (!isAuthenticated) {
-      navigate('/auth', { state: { from: `/item/${id}` } });
-      return;
-    }
-    if (!hasItemsToExchange) {
-      setStickerMessage('У вас нет товаров для обмена. Добавьте товар в профиле чтобы участвовать в цепочке.');
-      setShowSticker(true);
-      return;
-    }
-    setIsJoinModalOpen(true);
+  const handleDealCreated = (dealId: string) => {
+    setStickerMessage(`Сделка #${dealId} создана!`);
+    setShowSticker(true);
+    navigate(`/exchange/${dealId}`);
   };
 
   return (
@@ -89,11 +54,11 @@ export const ItemPage = () => {
           <div className="bg-gray-50 p-6 flex flex-col gap-4 border-r border-gray-100">
             <div className="aspect-square rounded-xl overflow-hidden bg-white shadow-inner relative group">
               <img src={mainImage} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              {/* {item.isLocked && (
+              {item.isLocked && (
                   <div className="absolute top-4 right-4 bg-red-500/90 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
                       Товар в сделке
                   </div>
-              )} */}
+              )}
             </div>
 
             {item.images && item.images.length > 1 && (
@@ -166,76 +131,31 @@ export const ItemPage = () => {
                     )}
                 </div>
 
-                {/* Hide action buttons for own items */}
-                {!isMyItem && !item.isLocked ? (
+                {/* Single smart action button */}
+                {!isMyItem && !item.isLocked && (
                     <div className="flex flex-col gap-2 min-w-[200px]">
-                        {/* Direct Exchange Button - Active only if user has what owner wants */}
-                        <button
-                            onClick={handleDirectExchange}
-                            disabled={!isAuthenticated || !hasDesiredItem}
-                            className={`w-full px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex flex-col items-center justify-center ${
-                                hasDesiredItem && isAuthenticated
-                                    ? 'bg-green-500 hover:bg-green-600 shadow-green-200 hover:-translate-y-0.5'
-                                    : 'bg-gray-300 cursor-not-allowed shadow-none'
-                            }`}
-                        >
-                            <span className="text-xs opacity-90 font-medium">
-                                {isAuthenticated ? (hasDesiredItem ? 'Есть нужный товар!' : 'Нет нужного товара') : 'Требуется вход'}
-                            </span>
-                            <span className="text-sm">
-                                {hasDesiredItem ? 'Предложить обмен' : 'Недоступно'}
-                            </span>
-                        </button>
-
-                        {/* Join Chain Button - Always active if user has any items */}
-                        <button
-                            onClick={handleJoinChain}
-                            disabled={!isAuthenticated || !hasItemsToExchange}
-                            className={`w-full px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex flex-col items-center justify-center ${
-                                isAuthenticated && hasItemsToExchange
-                                    ? 'bg-[#00AAFF] hover:bg-[#0095E0] shadow-blue-200 hover:-translate-y-0.5'
-                                    : 'bg-gray-300 cursor-not-allowed shadow-none'
-                            }`}
-                        >
-                            <span className="text-xs opacity-90 font-medium">
-                                {isAuthenticated ? (hasItemsToExchange ? `${myAvailableItems.length} товар(а) доступно` : 'Нет товаров') : 'Требуется вход'}
-                            </span>
-                            <span className="text-sm">
-                                Встать в цепочку
-                            </span>
-                        </button>
-
-                        {!isAuthenticated && (
-                            <p className="text-xs text-center text-gray-500 mt-1">
-                                <Link to="#" onClick={(e) => { e.preventDefault(); window.location.href='/profile'; }} className="text-[#00AAFF] hover:underline">
-                                    Войдите
-                                </Link> чтобы участвовать в обмене
-                            </p>
-                        )}
+                        <ExchangeActionBtn
+                          item={item}
+                          onDealCreated={() => handleDealCreated('pending')}
+                        />
                     </div>
-                ) : !isMyItem ? (
-                     <div className="px-8 py-4 rounded-xl font-bold text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed text-center min-w-[200px]">
-                        Недоступно для обмена
-                     </div>
-                ) : null}
+                )}
+
+                {isMyItem && (
+                  <div className="px-8 py-4 rounded-xl font-bold text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed text-center min-w-[200px]">
+                    Это ваш товар
+                  </div>
+                )}
+
+                {item.isLocked && (
+                  <div className="px-8 py-4 rounded-xl font-bold text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed text-center min-w-[200px]">
+                    Товар в сделке
+                  </div>
+                )}
             </div>
           </div>
         </div>
       </div>
-
-      {isJoinModalOpen && item && (
-        <JoinChainModal
-            targetItem={item}
-            onClose={() => setIsJoinModalOpen(false)}
-            onConfirm={(deal) => {
-                setIsJoinModalOpen(false);
-                setStickerMessage(`Сделка #${deal.id} создана! Вы вступили в цепочку обмена.`);
-                setShowSticker(true);
-                // Перенаправляем на страницу сделки
-                navigate(`/exchange/${deal.id}`);
-            }}
-        />
-      )}
 
       {/* Success Sticker for notifications */}
       <SuccessSticker

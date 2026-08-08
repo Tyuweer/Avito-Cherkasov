@@ -4,9 +4,57 @@ import { DealStatus, ChainLinkStatus, LogisticsStatus } from '../../../shared/ap
 import { mockUsers } from '../../user/api/userApi';
 // import { apiClient } from '../../../shared/api/client';
 
+const STORAGE_KEY_ITEMS = 'items_state';
+
+// Helper function to load items state from localStorage
+const loadItemsState = (): Partial<IItem>[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_ITEMS);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load items state:', e);
+  }
+  return [];
+};
+
+// Helper function to save items state to localStorage
+const saveItemsState = (items: IItem[]): void => {
+  try {
+    // Only save mutable fields (isLocked, holderId) for each item
+    const stateToSave = items.map(item => ({
+      id: item.id,
+      isLocked: item.isLocked,
+      holderId: item.holderId,
+    }));
+    localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(stateToSave));
+  } catch (e) {
+    console.error('Failed to save items state:', e);
+  }
+};
+
+// Apply persisted state to items
+const applyPersistedState = (items: IItem[]): IItem[] => {
+  const persistedState = loadItemsState();
+  if (persistedState.length === 0) return items;
+
+  return items.map(item => {
+    const state = persistedState.find(s => s.id === item.id);
+    if (state) {
+      return {
+        ...item,
+        isLocked: state.isLocked ?? item.isLocked,
+        holderId: state.holderId ?? item.holderId,
+      };
+    }
+    return item;
+  });
+};
+
 // Items organized by user (authorId)
 // Each user has their own unique items with specific wishes
-export const mockItems: IItem[] = [
+export const mockItems: IItem[] = applyPersistedState([
   // === Alex_Dev (id: 1) items ===
   {
     id: 102,
@@ -186,7 +234,7 @@ export const mockItems: IItem[] = [
     createdAt: '2026-08-06T11:00:00Z',
     wishes: ['Виниловые пластинки', 'Наушники'],
   },
-];
+]);
 
 // Helper function to get items by userId
 export const getItemsByUserId = (userId: number): IItem[] => {
@@ -265,6 +313,7 @@ export const itemApi = {
     const index = mockItems.findIndex(i => i.id === itemId);
     if (index !== -1) {
       mockItems[index].isLocked = true;
+      saveItemsState(mockItems);
     }
   },
 
@@ -272,6 +321,7 @@ export const itemApi = {
     const index = mockItems.findIndex(i => i.id === itemId);
     if (index !== -1) {
       mockItems[index].isLocked = false;
+      saveItemsState(mockItems);
     }
   },
 
@@ -318,7 +368,7 @@ export const itemApi = {
       logisticsStatus: LogisticsStatus.NONE,
     });
 
-    // Блокируем все товары в сделке
+    // Блокируем все товары в сделке и сохраняем состояние
     selectedGivingItems.forEach(item => {
       const idx = mockItems.findIndex(i => i.id === item.id);
       if (idx !== -1) {
@@ -331,6 +381,9 @@ export const itemApi = {
       mockItems[targetIdx].isLocked = true;
     }
 
+    // Сохраняем состояние после блокировки товаров
+    saveItemsState(mockItems);
+
     const newDeal: IExchangeDeal = {
       id: `deal-${Date.now()}`,
       status: DealStatus.CONFIRMING,
@@ -340,5 +393,18 @@ export const itemApi = {
     };
 
     return newDeal;
-  }
+  },
+
+  // Передача исключительного права на товар (chown)
+  transferExclusiveRight: async (itemId: number, toUserId: number): Promise<void> => {
+    console.log(`CHOWN: Item ${itemId} -> User ${toUserId}`);
+    await new Promise(r => setTimeout(r, 500));
+
+    const index = mockItems.findIndex(i => i.id === itemId);
+    if (index !== -1) {
+      mockItems[index].holderId = toUserId;
+      mockItems[index].isLocked = true;
+      saveItemsState(mockItems);
+    }
+  },
 };

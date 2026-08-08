@@ -18,11 +18,25 @@ export const HomePage = () => {
       let filtered: IItem[];
 
       if (currentUserId !== undefined && currentUserId !== null) {
-        // Пользователь авторизован - исключаем товары, которыми я распоряжаюсь (holderId === currentUserId) и свои собственные (authorId === currentUserId)
-        filtered = data.filter(i => i.holderId !== currentUserId && i.authorId !== currentUserId);
+        // Пользователь авторизован - применяем логику видимости:
+        // 1. Скрываем товары, где isLocked === true И holderId !== currentUserId (товары в сделке, не принадлежащие мне)
+        // 2. Показываем товары, где !isLocked (свободные товары для обмена)
+        // Свои товары (authorId === currentUserId или holderId === currentUserId) показываем только в профиле
+        filtered = data.filter(i => {
+          // Если товар заблокирован и я не держатель права - скрываем
+          if (i.isLocked && i.holderId !== currentUserId) {
+            return false;
+          }
+          // Свои товары и товары с исключительным правом скрываем из поиска (они в профиле)
+          if (i.authorId === currentUserId || i.holderId === currentUserId) {
+            return false;
+          }
+          // Показываем только свободные товары других пользователей
+          return true;
+        });
       } else {
-        // Пользователь не авторизован - показываем все товары
-        filtered = data;
+        // Пользователь не авторизован - показываем все незаблокированные товары
+        filtered = data.filter(i => !i.isLocked);
       }
 
       setAllItems(filtered);

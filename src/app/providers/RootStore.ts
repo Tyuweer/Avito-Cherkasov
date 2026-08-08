@@ -3,11 +3,12 @@ import { makeAutoObservable, runInAction } from 'mobx';
 import type { IUser, IExchangeDeal, IChainLink } from '../../shared/api/types';
 import { DealStatus } from '../../shared/api/types';
 import { AuthStore } from '../hooks/stores/AuthStore';
+import { dealStore } from './DealStore';
 
 class RootStore {
   auth: AuthStore;
+  deals = dealStore;
   currentUser: IUser | null = null;
-  activeDeals: IExchangeDeal[] = [];
   isLoading = false;
 
   constructor() {
@@ -46,21 +47,20 @@ class RootStore {
     // this.login();
   };
 
+  // Legacy method - delegate to dealStore
   updateDealStatus = (dealId: string, newStatus: DealStatus) => {
-    const deal = this.activeDeals.find(d => d.id === dealId);
-    if (deal) {
-      deal.status = newStatus;
-      // При отмене или завершении сделки - разблокируем все товары
-      if (newStatus === DealStatus.CANCELLED || newStatus === DealStatus.COMPLETED) {
-        deal.chain.forEach((link: IChainLink) => {
-          link.givingItem.isLocked = false;
-        });
-      }
+    if (newStatus === DealStatus.CANCELLED) {
+      this.deals.cancelDeal(dealId, 'Сделка отменена пользователем');
+    } else if (newStatus === DealStatus.ACTIVE || newStatus === DealStatus.CONFIRMED) {
+      this.deals.confirmDeal(dealId);
     }
   };
 
+  // Legacy method - delegate to dealStore
   setDeals = (deals: IExchangeDeal[]) => {
-    this.activeDeals = deals;
+    runInAction(() => {
+      this.deals.deals = deals;
+    });
   };
 }
 

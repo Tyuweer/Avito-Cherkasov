@@ -16,7 +16,7 @@ import {
   getItemsByUserId,
 } from "../../entities/item/api/itemApi";
 import { useAuthStore } from "../../app/hooks/useAuthStore";
-import { useStore } from "../../app/providers/StoreProvider";
+import { dealStore } from "../../app/providers/DealStore";
 import { JoinChainModal } from "../../features/join-chain/ui/JoinChainModal";
 
 type FilterType = "active" | "completed" | "cancelled" | "all";
@@ -30,7 +30,6 @@ export const ExchangePage = () => {
   const [targetItem, setTargetItem] = useState<IItem | null>(null);
 
   const authStore = useAuthStore();
-  const store = useStore();
   const currentUserId = authStore.user?.id ?? 1;
 
   // Фильтруем товары - оставляем только те, где currentUserId является authorId или holderId
@@ -41,9 +40,8 @@ export const ExchangePage = () => {
     );
   }, [currentUserId]);
 
-  // Массив сделок теперь берется только из store
-  // Mock-данные удалены - сделки создаются только при нажатии "Встать в цепочку"
-  const allDeals = store.activeDeals;
+  // Массив сделок берется из dealStore
+  const allDeals = dealStore.deals;
 
   useEffect(() => {
     if (dealId) {

@@ -2,37 +2,40 @@
 import { useNavigate } from 'react-router-dom';
 import type { IItem } from '../../../shared/api/types';
 import { UserBadge } from '../../user/ui/UserBadge';
-import { mockUsers } from '../../user/api/userApi'; 
+import { mockUsers } from '../../user/api/userApi';
 
 interface ItemCardProps {
   item: IItem;
-  // onJoinChain убрали, он больше не нужен на карточке
+  showRoleBadges?: boolean; // Показывать ли бейджи роли (для профиля)
 }
 
-export const ItemCard = ({ item }: ItemCardProps) => {
+export const ItemCard = ({ item, showRoleBadges = false }: ItemCardProps) => {
   const navigate = useNavigate();
   const isRightTransferred = item.holderId !== item.authorId;
-  const holder = mockUsers[item.holderId] || { id: 0, username: 'Unknown', rating: 0, declineCount: 0 }; 
+  const holder = mockUsers[item.holderId] || { id: 0, username: 'Unknown', rating: 0, declineCount: 0 };
 
   const handleClick = () => {
     navigate(`/item/${item.id}`);
   };
 
   return (
-    <div 
+    <div
       onClick={handleClick}
       className="cursor-pointer relative bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col h-full"
     >
-      {/* {item.isLocked && (
-        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10 shadow-sm">
-          В сделке
+
+
+      {/* Бейдж "Передано в цепочку" для владельца, который отдал право */}
+      {isRightTransferred && item.isLocked && item.authorId === holder.id && (
+        <div className="absolute top-2 left-2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded z-10 shadow-sm">
+          Передано в цепочку
         </div>
-      )} */}
+      )}
 
       <div className="h-48 bg-gray-100 w-full relative overflow-hidden">
-        <img 
-          src={item.imageUrl} 
-          alt={item.title} 
+        <img
+          src={item.imageUrl}
+          alt={item.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
 
@@ -70,7 +73,7 @@ export const ItemCard = ({ item }: ItemCardProps) => {
           </div>
           <UserBadge user={holder} size="sm" />
         </div>
-        
+
         {/* Убрали кнопки действий отсюда */}
       </div>
     </div>
