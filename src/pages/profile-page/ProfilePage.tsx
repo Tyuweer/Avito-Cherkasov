@@ -10,6 +10,7 @@ import { EditItemForm } from "../../features/edit-item/ui/EditItemForm";
 import { SuccessSticker } from "../../shared/ui/SuccessSticker";
 import { authApi } from "../../shared/api/authApi";
 import { MyDealsTab } from "../../features/my-deals/ui/MyDealsTab";
+import { dealStore } from "../../app/providers/DealStore";
 
 type Tab = "items" | "wishes" | "deals" | "settings";
 
@@ -253,13 +254,14 @@ export const ProfilePage = () => {
             {myItems.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {myItems.map((item) => {
-                  const originalOwner = item.authorId !== item.holderId;
+                  // Show "Exclusive right" badge ONLY if holderId != authorId AND item is locked (in active deal)
+                  const hasExclusiveRight = item.holderId !== item.authorId && item.isLocked;
                   const canEdit = item.authorId === item.holderId && !item.isLocked;
                   const inDeal = item.isLocked;
                   return (
                     <div key={item.id} className="relative group flex flex-col">
-                      {/* Бейдж "Исключительное право" */}
-                      {originalOwner && (
+                      {/* Бейдж "Исключительное право" - только если право передано И товар в сделке */}
+                      {hasExclusiveRight && (
                         <div className="absolute -top-3 left-2 z-20 bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md flex items-center gap-1 pointer-events-none">
                           <span>⚡</span> Исключительное право
                         </div>
@@ -273,7 +275,7 @@ export const ProfilePage = () => {
                       <div
                         className={`
                               bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all h-full flex flex-col
-                              ${originalOwner ? "border-purple-200 ring-1 ring-purple-100" : "border-gray-200"}
+                              ${hasExclusiveRight ? "border-purple-200 ring-1 ring-purple-100" : "border-gray-200"}
                               ${inDeal ? "border-orange-300 ring-1 ring-orange-100" : ""}
                           `}
                       >
@@ -291,7 +293,7 @@ export const ProfilePage = () => {
                               ✎
                             </button>
                           )}
-                          {!originalOwner && !item.isLocked && (
+                          {!hasExclusiveRight && !item.isLocked && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -512,6 +514,24 @@ export const ProfilePage = () => {
                 'Сохранить изменения'
               )}
             </button>
+
+            {/* Debug section - Reset all deals */}
+            <div className="pt-6 border-t border-gray-200 mt-8">
+              <h3 className="text-sm font-bold text-red-600 mb-2">⚠️ Отладка</h3>
+              <p className="text-xs text-gray-500 mb-3">
+                Нажмите кнопку ниже, чтобы сбросить все сделки и вернуть товары владельцам.
+              </p>
+              <button
+                onClick={() => {
+                  if (window.confirm('Вы уверены? Это действие удалит все сделки и разблокирует товары.')) {
+                    dealStore.resetAllDeals();
+                  }
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors flex items-center gap-2"
+              >
+                🗑️ Сбросить все сделки
+              </button>
+            </div>
           </div>
         )}
       </div>

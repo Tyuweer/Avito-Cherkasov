@@ -135,11 +135,6 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
                       <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-xs px-2 py-0.5 rounded-full font-bold border-2 border-white text-yellow-900 shadow-sm flex items-center gap-0.5">
                         ★ {link.user.rating}
                       </div>
-                      {isInitiator && (
-                        <div className="absolute -top-2 -left-2 bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-sm animate-pulse">
-                          ИНИЦИАТОР
-                        </div>
-                      )}
                     </div>
 
                     <span className="font-bold text-slate-800 text-base group-hover/user:text-blue-600 transition-colors">

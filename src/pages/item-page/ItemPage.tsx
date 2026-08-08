@@ -30,7 +30,9 @@ export const ItemPage = () => {
 
   if (!item) return <div className="p-10 text-center">Товар не найден</div>;
 
-  const owner = mockUsers[item.authorId];
+  // Display holder (распорядитель) instead of author (владелец)
+  const holder = mockUsers[item.holderId];
+  const author = mockUsers[item.authorId];
 
   // Check if current user is the holder (has exclusive rights) or author
   const isMyItem = currentUser && (item.holderId === currentUser.id || item.authorId === currentUser.id);
@@ -121,10 +123,12 @@ export const ItemPage = () => {
 
             <div className="mt-auto pt-8 border-t border-gray-100 flex items-center justify-between gap-4">
                 <div className="flex flex-col">
-                    <span className="text-xs text-gray-400 uppercase font-bold mb-2 tracking-wider">Владелец товара</span>
-                    {owner ? (
-                        <Link to={`/user/${owner.id}`} className="flex items-center gap-3 bg-gray-50 p-2 pr-4 rounded-xl border border-gray-100 hover:border-[#00AAFF] transition-colors">
-                            <UserBadge user={owner} />
+                    <span className="text-xs text-gray-400 uppercase font-bold mb-2 tracking-wider">
+                      {item.holderId !== item.authorId ? 'Распорядитель' : 'Владелец товара'}
+                    </span>
+                    {holder ? (
+                        <Link to={`/user/${holder.id}`} className="flex items-center gap-3 bg-gray-50 p-2 pr-4 rounded-xl border border-gray-100 hover:border-[#00AAFF] transition-colors">
+                            <UserBadge user={holder} />
                         </Link>
                     ) : (
                         <span className="text-gray-400 text-sm">Неизвестен</span>

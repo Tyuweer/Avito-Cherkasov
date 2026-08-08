@@ -200,6 +200,27 @@ export class DealStore {
   getDealById(dealId: string): IExchangeDeal | undefined {
     return this.deals.find(d => d.id === dealId);
   }
+
+  // Reset all deals (for debug purposes)
+  resetAllDeals = (): void => {
+    runInAction(() => {
+      // Unlock all items
+      mockItems.forEach(item => {
+        item.isLocked = false;
+        // Reset holderId to authorId
+        item.holderId = item.authorId;
+      });
+
+      // Clear all deals
+      this.deals = [];
+
+      // Save to storage
+      this.saveToStorage();
+
+      // Reload page to refresh state
+      window.location.reload();
+    });
+  };
 }
 
 export const dealStore = new DealStore();
