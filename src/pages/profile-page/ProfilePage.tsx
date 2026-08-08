@@ -227,7 +227,7 @@ export const ProfilePage = () => {
           >
             {tab === "items" && "Мои предметы"}
             {tab === "wishes" && "Мои пожелания"}
-            {tab === "deals" && "Мои сделки"}
+            {tab === "deals" && "Мои обмены"}
             {tab === "settings" && "Настройки"}
           </button>
         ))}
@@ -354,10 +354,11 @@ export const ProfilePage = () => {
           </div>
         )}
 
-        {/* Вкладка: Мои сделки */}
-        {activeTab === "deals" && (
-          <MyDealsTab currentUserId={currentUser.id} />
-        )}
+        {/* Вкладка: Мои сделки - редирект на /exchange */}
+        {activeTab === "deals" && (() => {
+          navigate("/exchange");
+          return null;
+        })()}
 
         {/* Вкладка: Настройки */}
         {activeTab === "settings" && (

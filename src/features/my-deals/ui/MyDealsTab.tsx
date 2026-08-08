@@ -163,6 +163,59 @@ const mockDeals: Deal[] = [
       },
     ],
   },
+  {
+    id: "deal-105",
+    title: "Многопользовательский обмен (4 участника)",
+    status: "active",
+    deadline: "20 авг 2025",
+    initiatorId: 1,
+    participants: [
+      {
+        userId: 1,
+        username: "alex",
+        givesItemId: 102,
+        givesItemName: "Игровая приставка PS5",
+        givesItemImage: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=800&q=80",
+        receivesItemId: 101,
+        receivesItemName: "Велосипед горный",
+        receivesItemImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_z4VgQKopNA_8vUS1LOGJ_UFbohFi7gYI_TuzfNMtlYQW4GaRnZn9xf4&s=10",
+        status: "confirmed",
+      },
+      {
+        userId: 2,
+        username: "dima",
+        givesItemId: 101,
+        givesItemName: "Велосипед горный",
+        givesItemImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_z4VgQKopNA_8vUS1LOGJ_UFbohFi7gYI_TuzfNMtlYQW4GaRnZn9xf4&s=10",
+        receivesItemId: 301,
+        receivesItemName: "Игровой монитор 27\"",
+        receivesItemImage: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80",
+        status: "pending",
+      },
+      {
+        userId: 3,
+        username: "max",
+        givesItemId: 301,
+        givesItemName: "Игровой монитор 27\"",
+        givesItemImage: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80",
+        receivesItemId: 401,
+        receivesItemName: "Фотоаппарат Canon EOS",
+        receivesItemImage: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
+        status: "pending",
+      },
+      {
+        userId: 4,
+        username: "photo",
+        givesItemId: 401,
+        givesItemName: "Фотоаппарат Canon EOS",
+        givesItemImage: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
+        receivesItemId: 102,
+        receivesItemName: "Игровая приставка PS5",
+        receivesItemImage: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=800&q=80",
+        status: "pending",
+      },
+    ],
+  },
 ];
 
 interface MyDealsTabProps {
@@ -171,7 +224,7 @@ interface MyDealsTabProps {
 
 export const MyDealsTab = ({ currentUserId }: MyDealsTabProps) => {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<"active" | "completed" | "all">("active");
+  const [filter, setFilter] = useState<"active" | "completed" | "cancelled" | "all">("active");
 
   // Фильтруем сделки, где пользователь участвует
   const myDeals = useMemo(() => {
@@ -186,12 +239,14 @@ export const MyDealsTab = ({ currentUserId }: MyDealsTabProps) => {
     return myDeals.filter((deal) => deal.status === filter);
   }, [myDeals, filter]);
 
-  const getStatusLabel = (status: "active" | "completed" | "all") => {
+  const getStatusLabel = (status: "active" | "completed" | "cancelled" | "all") => {
     switch (status) {
       case "active":
         return "Активные";
       case "completed":
         return "Завершенные";
+      case "cancelled":
+        return "Отмененные";
       case "all":
         return "Все сделки";
       default:
@@ -241,7 +296,7 @@ export const MyDealsTab = ({ currentUserId }: MyDealsTabProps) => {
         <h2 className="text-lg font-bold text-gray-900">Мои сделки</h2>
 
         <div className="flex gap-2">
-          {(["active", "completed", "all"] as const).map((status) => (
+          {(["active", "completed", "cancelled", "all"] as const).map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
@@ -339,6 +394,7 @@ export const MyDealsTab = ({ currentUserId }: MyDealsTabProps) => {
           <p>
             {filter === "active" && "У вас нет активных обменов"}
             {filter === "completed" && "У вас нет завершенных обменов"}
+            {filter === "cancelled" && "У вас нет отмененных обменов"}
             {filter === "all" && "У вас пока нет сделок"}
           </p>
           {filter === "active" && (

@@ -32,6 +32,7 @@ const AppContent = () => {
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/exchange" element={<ExchangePage />} />
         <Route path="/exchange/:dealId" element={<ExchangePage />} />
         <Route path="/item/:id" element={<ItemPage />} />
         <Route path="/user/:id" element={<UserProfilePage />} />

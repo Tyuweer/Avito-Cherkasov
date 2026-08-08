@@ -3,9 +3,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Импорты типов и компонентов
-import { DealStatus, LogisticsStatus } from '../../../shared/api/types';
+import { DealStatus } from '../../../shared/api/types';
 import type { IExchangeDeal, IChainLink, IItem } from '../../../shared/api/types';
-import { StatusTracker } from '../../status-tracker/ui/StatusTracker';
 import { DeclineModal } from '../../../features/decline-deal/ui/DeclineModal';
 
 interface ChainVisualizerProps {
@@ -16,10 +15,10 @@ interface ChainVisualizerProps {
 // Вспомогательный компонент для карточки товара (кликабельной)
 const ItemCard: React.FC<{ item: IItem; label: string; color: 'slate' | 'blue' }> = ({ item, label, color }) => {
   const navigate = useNavigate();
-  
+
   // Останавливаем всплытие, чтобы клик по товару не открывал профиль юзера
   const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     navigate(`/item/${item.id}`); // Переход на страницу товара
   };
 
@@ -29,7 +28,7 @@ const ItemCard: React.FC<{ item: IItem; label: string; color: 'slate' | 'blue' }
   const barClass = color === 'blue' ? 'bg-blue-400' : 'bg-slate-300';
 
   return (
-    <div 
+    <div
       onClick={handleClick}
       className={`relative overflow-hidden rounded-xl p-3 border shadow-sm cursor-pointer hover:shadow-md transition-all group/item ${borderClass}`}
     >
@@ -55,11 +54,6 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
 
   const currentUserLink = deal.chain.find((link) => link.userId === currentUserId);
-  const isMyTurn = currentUserLink?.logisticsStatus === LogisticsStatus.PENDING_DROP_OFF;
-
-  const handleDropOff = () => {
-    console.log('Mock: User dropped off item at PVZ');
-  };
 
   const handleFindNewDeal = () => {
     setIsDeclineModalOpen(false);
@@ -76,15 +70,15 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
           <p className="text-slate-600 mb-8 max-w-md">
             Цепочка была разорвана. Все исключительные права возвращены владельцам.
           </p>
-          <button 
+          <button
             onClick={() => setIsDeclineModalOpen(true)}
             className="px-6 py-3 bg-white border border-red-200 text-red-600 rounded-xl font-medium hover:bg-red-50 transition shadow-sm"
           >
             Почему это произошло?
           </button>
         </div>
-        
-        <DeclineModal 
+
+        <DeclineModal
           isOpen={isDeclineModalOpen}
           onClose={() => setIsDeclineModalOpen(false)}
           reason={deal.declineReason || 'Участник отказался от обмена'}
@@ -100,11 +94,11 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
       {/* --- Визуализация цепи --- */}
       <div className="overflow-x-auto pb-8 pt-2 scrollbar-hide">
         <div className="flex items-start min-w-max md:min-w-0 md:flex-wrap md:justify-center gap-4 md:gap-0">
-          
+
           {deal.chain.map((link: IChainLink, index: number) => {
             const isLast = index === deal.chain.length - 1;
             const isInitiator = link.userId === deal.initiatorId;
-            
+
             // Определяем, что получает этот участник.
             // В линейной цепи: Участник N получает то, что отдает Участник N-1.
             // Для первого участника (инициатора) он получает то, что отдает последний (замыкание).
@@ -124,9 +118,9 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
               <React.Fragment key={link.userId}>
                 {/* Колонка участника */}
                 <div className="flex flex-col items-center w-64">
-                  
+
                   {/* Шапка профиля (Кликабельная область -> Профиль) */}
-                  <div 
+                  <div
                     className="flex flex-col items-center mb-4 cursor-pointer group/user"
                     onClick={() => navigate(`/user/${link.userId}`)}
                   >
@@ -147,7 +141,7 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
                         </div>
                       )}
                     </div>
-                    
+
                     <span className="font-bold text-slate-800 text-base group-hover/user:text-blue-600 transition-colors">
                       {link.user.username}
                     </span>
@@ -159,12 +153,12 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
                   {/* Блок товаров */}
                   <div className="w-full space-y-3 px-2">
                     {/* ЧТО ОТДАЕТ (Стрелка от этого блока идет вправо к следующему) */}
-                    <ItemCard 
-                      item={link.givingItem} 
-                      label="Отдает" 
-                      color="slate" 
+                    <ItemCard
+                      item={link.givingItem}
+                      label="Отдает"
+                      color="slate"
                     />
-                    
+
                     {/* Стрелка вниз (визуальный разделитель) */}
                     <div className="flex justify-center text-slate-300">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
@@ -172,10 +166,10 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
 
                     {/* ЧТО ПОЛУЧАЕТ (Приходит от предыдущего или последнего) */}
                     {receivingItem && (
-                      <ItemCard 
-                        item={receivingItem} 
-                        label={receivingLabel} 
-                        color="blue" 
+                      <ItemCard
+                        item={receivingItem}
+                        label={receivingLabel}
+                        color="blue"
                       />
                     )}
                   </div>
@@ -200,7 +194,7 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
                   </div>
                 )}
-                
+
                 {/* Замыкающая стрелка для последнего элемента (визуально показывает возврат к началу) */}
                 {isLast && deal.chain.length > 1 && (
                    <div className="hidden md:flex absolute right-0 top-1/2 transform translate-x-full pl-4 text-slate-300 opacity-50 pointer-events-none">
@@ -214,7 +208,7 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
             );
           })}
         </div>
-        
+
         {/* Индикатор замыкания цепи (для наглядности) */}
         {deal.chain.length > 1 && (
           <div className="mt-4 flex justify-center md:hidden">
@@ -225,24 +219,6 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
         )}
       </div>
 
-      {/* --- Логистика --- */}
-      {(deal.status === DealStatus.CONFIRMED || deal.status === DealStatus.ACTIVE) && currentUserLink && (
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-          <div className="bg-slate-800 text-white px-6 py-3 flex justify-between items-center">
-            <span className="font-medium flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${isMyTurn ? 'bg-green-400 animate-pulse' : 'bg-slate-500'}`}></span>
-              Статус доставки
-            </span>
-            <span className="text-xs bg-slate-700 px-2 py-1 rounded font-mono">ID: {deal.id.slice(0, 8)}</span>
-          </div>
-          <StatusTracker 
-            currentStatus={currentUserLink.logisticsStatus}
-            onDropOff={handleDropOff}
-            isCurrentUserTurn={isMyTurn}
-          />
-        </div>
-      )}
-      
       {/* --- Ожидание --- */}
       {(deal.status === DealStatus.PENDING || deal.status === DealStatus.CONFIRMING) && (
          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 text-center flex flex-col items-center">
