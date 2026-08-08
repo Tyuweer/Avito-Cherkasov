@@ -1,8 +1,10 @@
 // src/features/my-deals/ui/MyDealsTab.tsx
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useStore } from "../../../app/providers/StoreProvider";
+import { DealStatus } from "../../../shared/api/types";
 
-type DealStatus = "active" | "completed" | "cancelled";
+type DealStatusType = "active" | "completed" | "cancelled";
 type ParticipantStatus = "pending" | "confirmed" | "completed" | "cancelled";
 
 interface DealParticipant {
@@ -20,203 +22,11 @@ interface DealParticipant {
 interface Deal {
   id: string;
   title: string;
-  status: DealStatus;
+  status: DealStatusType;
   participants: DealParticipant[];
   deadline: string;
   initiatorId: number;
 }
-
-// Тестовые данные для сделок
-const mockDeals: Deal[] = [
-  {
-    id: "deal-101",
-    title: "Обмен лодки на апельсин",
-    status: "active",
-    deadline: "11 авг 2025",
-    initiatorId: 1,
-    participants: [
-      {
-        userId: 1,
-        username: "alex",
-        givesItemId: 1,
-        givesItemName: "Лодка ПВХ",
-        givesItemImage: "https://placehold.co/100/blue/white?text=Boat",
-        receivesItemId: 2,
-        receivesItemName: "Апельсин",
-        receivesItemImage: "https://placehold.co/100/orange/white?text=Orange",
-        status: "confirmed",
-      },
-      {
-        userId: 2,
-        username: "dima",
-        givesItemId: 2,
-        givesItemName: "Апельсин",
-        givesItemImage: "https://placehold.co/100/orange/white?text=Orange",
-        receivesItemId: 3,
-        receivesItemName: "Наушники",
-        receivesItemImage: "https://placehold.co/100/purple/white?text=Headphones",
-        status: "pending",
-      },
-      {
-        userId: 3,
-        username: "max",
-        givesItemId: 3,
-        givesItemName: "Наушники",
-        givesItemImage: "https://placehold.co/100/purple/white?text=Headphones",
-        receivesItemId: 1,
-        receivesItemName: "Лодка ПВХ",
-        receivesItemImage: "https://placehold.co/100/blue/white?text=Boat",
-        status: "pending",
-      },
-    ],
-  },
-  {
-    id: "deal-102",
-    title: "Обмен фотоаппарата",
-    status: "completed",
-    deadline: "5 авг 2025",
-    initiatorId: 4,
-    participants: [
-      {
-        userId: 1,
-        username: "alex",
-        givesItemId: 5,
-        givesItemName: "Велосипед",
-        givesItemImage: "https://placehold.co/100/green/white?text=Bike",
-        receivesItemId: 6,
-        receivesItemName: "Фотоаппарат",
-        receivesItemImage: "https://placehold.co/100/black/white?text=Camera",
-        status: "completed",
-      },
-      {
-        userId: 4,
-        username: "photo",
-        givesItemId: 6,
-        givesItemName: "Фотоаппарат",
-        givesItemImage: "https://placehold.co/100/black/white?text=Camera",
-        receivesItemId: 5,
-        receivesItemName: "Велосипед",
-        receivesItemImage: "https://placehold.co/100/green/white?text=Bike",
-        status: "completed",
-      },
-    ],
-  },
-  {
-    id: "deal-103",
-    title: "Музыкальный обмен",
-    status: "active",
-    deadline: "15 авг 2025",
-    initiatorId: 5,
-    participants: [
-      {
-        userId: 1,
-        username: "alex",
-        givesItemId: 7,
-        givesItemName: "Гитара",
-        givesItemImage: "https://placehold.co/100/brown/white?text=Guitar",
-        receivesItemId: 8,
-        receivesItemName: "Укулеле",
-        receivesItemImage: "https://placehold.co/100/yellow/white?text=Ukulele",
-        status: "confirmed",
-      },
-      {
-        userId: 5,
-        username: "music",
-        givesItemId: 8,
-        givesItemName: "Укулеле",
-        givesItemImage: "https://placehold.co/100/yellow/white?text=Ukulele",
-        receivesItemId: 7,
-        receivesItemName: "Гитара",
-        receivesItemImage: "https://placehold.co/100/brown/white?text=Guitar",
-        status: "pending",
-      },
-    ],
-  },
-  {
-    id: "deal-104",
-    title: "Отмененный обмен",
-    status: "cancelled",
-    deadline: "1 авг 2025",
-    initiatorId: 2,
-    participants: [
-      {
-        userId: 1,
-        username: "alex",
-        givesItemId: 9,
-        givesItemName: "Часы",
-        givesItemImage: "https://placehold.co/100/silver/white?text=Watch",
-        receivesItemId: 10,
-        receivesItemName: "Рюкзак",
-        receivesItemImage: "https://placehold.co/100/gray/white?text=Backpack",
-        status: "cancelled",
-      },
-      {
-        userId: 2,
-        username: "dima",
-        givesItemId: 10,
-        givesItemName: "Рюкзак",
-        givesItemImage: "https://placehold.co/100/gray/white?text=Backpack",
-        receivesItemId: 9,
-        receivesItemName: "Часы",
-        receivesItemImage: "https://placehold.co/100/silver/white?text=Watch",
-        status: "cancelled",
-      },
-    ],
-  },
-  {
-    id: "deal-105",
-    title: "Многопользовательский обмен (4 участника)",
-    status: "active",
-    deadline: "20 авг 2025",
-    initiatorId: 1,
-    participants: [
-      {
-        userId: 1,
-        username: "alex",
-        givesItemId: 102,
-        givesItemName: "Игровая приставка PS5",
-        givesItemImage: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=800&q=80",
-        receivesItemId: 101,
-        receivesItemName: "Велосипед горный",
-        receivesItemImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_z4VgQKopNA_8vUS1LOGJ_UFbohFi7gYI_TuzfNMtlYQW4GaRnZn9xf4&s=10",
-        status: "confirmed",
-      },
-      {
-        userId: 2,
-        username: "dima",
-        givesItemId: 101,
-        givesItemName: "Велосипед горный",
-        givesItemImage: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_z4VgQKopNA_8vUS1LOGJ_UFbohFi7gYI_TuzfNMtlYQW4GaRnZn9xf4&s=10",
-        receivesItemId: 301,
-        receivesItemName: "Игровой монитор 27\"",
-        receivesItemImage: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80",
-        status: "pending",
-      },
-      {
-        userId: 3,
-        username: "max",
-        givesItemId: 301,
-        givesItemName: "Игровой монитор 27\"",
-        givesItemImage: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&q=80",
-        receivesItemId: 401,
-        receivesItemName: "Фотоаппарат Canon EOS",
-        receivesItemImage: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
-        status: "pending",
-      },
-      {
-        userId: 4,
-        username: "photo",
-        givesItemId: 401,
-        givesItemName: "Фотоаппарат Canon EOS",
-        givesItemImage: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
-        receivesItemId: 102,
-        receivesItemName: "Игровая приставка PS5",
-        receivesItemImage: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=800&q=80",
-        status: "pending",
-      },
-    ],
-  },
-];
 
 interface MyDealsTabProps {
   currentUserId: number;
@@ -224,14 +34,52 @@ interface MyDealsTabProps {
 
 export const MyDealsTab = ({ currentUserId }: MyDealsTabProps) => {
   const navigate = useNavigate();
+  const store = useStore();
   const [filter, setFilter] = useState<"active" | "completed" | "cancelled" | "all">("active");
 
-  // Фильтруем сделки, где пользователь участвует
-  const myDeals = useMemo(() => {
-    return mockDeals.filter((deal) =>
-      deal.participants.some((p) => p.userId === currentUserId)
-    );
-  }, [currentUserId]);
+  // Конвертируем сделки из store в формат для отображения
+  const myDeals: Deal[] = useMemo(() => {
+    return store.activeDeals
+      .filter((deal) => deal.chain.some((link) => link.userId === currentUserId))
+      .map((deal) => {
+        // Находим участника с текущим пользователем
+        const currentUserLink = deal.chain.find((link) => link.userId === currentUserId);
+
+        // Формируем участников для отображения
+        const participants: DealParticipant[] = deal.chain.map((link) => {
+          // Находим следующий звено для получения предмета
+          const currentIndex = deal.chain.findIndex((l) => l.userId === link.userId);
+          const nextIndex = currentIndex === deal.chain.length - 1 ? 0 : currentIndex + 1;
+          const nextLink = deal.chain[nextIndex];
+
+          return {
+            userId: link.userId,
+            username: link.user.username,
+            givesItemId: link.givingItem.id,
+            givesItemName: link.givingItem.title,
+            givesItemImage: link.givingItem.imageUrl,
+            receivesItemId: nextLink.givingItem.id,
+            receivesItemName: nextLink.givingItem.title,
+            receivesItemImage: nextLink.givingItem.imageUrl,
+            status: link.status === 'ACCEPTED' ? 'confirmed' : link.status === 'DECLINED' ? 'cancelled' : 'pending',
+          };
+        });
+
+        // Статус сделки
+        let status: DealStatusType = "active";
+        if (deal.status === DealStatus.COMPLETED) status = "completed";
+        else if (deal.status === DealStatus.CANCELLED) status = "cancelled";
+
+        return {
+          id: deal.id,
+          title: `Обмен #${deal.id}`,
+          status,
+          participants,
+          deadline: new Date(deal.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }),
+          initiatorId: deal.initiatorId,
+        };
+      });
+  }, [store.activeDeals, currentUserId]);
 
   // Применяем фильтр по статусу
   const filteredDeals = useMemo(() => {
@@ -254,7 +102,7 @@ export const MyDealsTab = ({ currentUserId }: MyDealsTabProps) => {
     }
   };
 
-  const getStatusBadge = (status: DealStatus) => {
+  const getStatusBadge = (status: DealStatusType) => {
     switch (status) {
       case "active":
         return (

@@ -257,5 +257,19 @@ export const itemApi = {
     };
 
     return mockItems[index];
+  },
+
+  lockItem: async (itemId: number): Promise<void> => {
+    const index = mockItems.findIndex(i => i.id === itemId);
+    if (index !== -1) {
+      mockItems[index].isLocked = true;
+    }
+  },
+
+  unlockItem: async (itemId: number): Promise<void> => {
+    const index = mockItems.findIndex(i => i.id === itemId);
+    if (index !== -1) {
+      mockItems[index].isLocked = false;
+    }
   }
 };

@@ -30,199 +30,23 @@ export const ExchangePage = () => {
     return mockItems.filter(item => item.authorId === currentUserId || item.holderId === currentUserId);
   }, [currentUserId]);
 
-  // Мок тестовых обменов для разных сценариев
-  // ВАЖНО: В сделках участвуют только товары, которые есть у пользователей (authorId совпадает)
-  // Исключительное право (holderId) передается при вступлении в цепочку
-  const mockDeals: IExchangeDeal[] = [
-    // Активный обмен с участием текущего пользователя (2 участника)
-    // alex (id:1) отдает PS5 (authorId:1), получает Велосипед (authorId:2, holderId:1 - исключительное право передано alex)
-    {
-      id: 'deal-101',
-      status: DealStatus.CONFIRMING,
-      deadline: '2026-08-11T23:59:59Z',
-      initiatorId: currentUserId,
-      chain: [
-        {
-          userId: currentUserId,
-          user: mockUsers[currentUserId] || mockUsers[1],
-          status: ChainLinkStatus.ACCEPTED,
-          givingItemId: 102, // PS5 - принадлежит alex (authorId:1)
-          givingItem: mockItems.find(i => i.id === 102) || mockItems[0],
-          receivingItemId: 101, // Велосипед - authorId:2, но holderId:1 (alex получил исключительное право)
-          receivingItem: mockItems.find(i => i.id === 101),
-          logisticsStatus: LogisticsStatus.NONE,
-        },
-        {
-          userId: 2,
-          user: mockUsers[2],
-          status: ChainLinkStatus.PENDING,
-          givingItemId: 101, // Велосипед - принадлежит dima (authorId:2)
-          givingItem: mockItems.find(i => i.id === 101) || mockItems[0],
-          receivingItemId: 102, // PS5 - получит от alex
-          receivingItem: mockItems.find(i => i.id === 102),
-          logisticsStatus: LogisticsStatus.NONE,
-        },
-      ],
-    },
-    // Завершенный обмен (2 участника) - только если currentUserId участвует
-    ...(currentUserId === 2 || currentUserId === 3 ? [{
-      id: 'deal-102',
-      status: DealStatus.COMPLETED,
-      deadline: '2026-07-01T23:59:59Z',
-      initiatorId: 2,
-      chain: [
-        {
-          userId: 2,
-          user: mockUsers[2],
-          status: ChainLinkStatus.ACCEPTED,
-          givingItemId: 201, // Шлем - принадлежит dima (authorId:2)
-          givingItem: mockItems.find(i => i.id === 201) || mockItems[0],
-          receivingItemId: 301, // Монитор - authorId:3
-          receivingItem: mockItems.find(i => i.id === 301),
-          logisticsStatus: LogisticsStatus.COMPLETED,
-        },
-        {
-          userId: 3,
-          user: mockUsers[3],
-          status: ChainLinkStatus.ACCEPTED,
-          givingItemId: 301, // Монитор - принадлежит max (authorId:3)
-          givingItem: mockItems.find(i => i.id === 301) || mockItems[0],
-          receivingItemId: 201, // Шлем - получит от dima
-          receivingItem: mockItems.find(i => i.id === 201),
-          logisticsStatus: LogisticsStatus.COMPLETED,
-        },
-      ],
-    }] : []),
-    // Обмен в процессе логистики - только если currentUserId === 4 или 5
-    ...(currentUserId === 4 || currentUserId === 5 ? [{
-      id: 'deal-103',
-      status: DealStatus.ACTIVE,
-      deadline: '2026-08-15T23:59:59Z',
-      initiatorId: 4,
-      chain: [
-        {
-          userId: 4,
-          user: mockUsers[4],
-          status: ChainLinkStatus.ACCEPTED,
-          givingItemId: 401, // Фотоаппарат - принадлежит photo (authorId:4)
-          givingItem: mockItems.find(i => i.id === 401) || mockItems[0],
-          receivingItemId: 109, // Книги - authorId:4
-          receivingItem: mockItems.find(i => i.id === 109),
-          logisticsStatus: LogisticsStatus.DROPPED_OFF,
-        },
-        {
-          userId: 5,
-          user: mockUsers[5],
-          status: ChainLinkStatus.ACCEPTED,
-          givingItemId: 109, // Книги - принадлежат photo (authorId:4), но holderId может быть 5
-          givingItem: mockItems.find(i => i.id === 109) || mockItems[0],
-          receivingItemId: 401, // Фотоаппарат - получит от photo
-          receivingItem: mockItems.find(i => i.id === 401),
-          logisticsStatus: LogisticsStatus.PENDING_DROP_OFF,
-        },
-      ],
-    }] : []),
-    // Отмененный обмен (2 участника) - только если currentUserId === 3 или 5
-    ...(currentUserId === 3 || currentUserId === 5 ? [{
-      id: 'deal-104',
-      status: DealStatus.CANCELLED,
-      deadline: '2026-06-01T23:59:59Z',
-      initiatorId: 3,
-      declineReason: 'Участник отказался от обмена',
-      chain: [
-        {
-          userId: 3,
-          user: mockUsers[3],
-          status: ChainLinkStatus.DECLINED,
-          givingItemId: 302, // Кресло - принадлежит max (authorId:3)
-          givingItem: mockItems.find(i => i.id === 302) || mockItems[0],
-          receivingItemId: 110, // Скейт - authorId:5
-          receivingItem: mockItems.find(i => i.id === 110),
-          logisticsStatus: LogisticsStatus.NONE,
-        },
-        {
-          userId: 5,
-          user: mockUsers[5],
-          status: ChainLinkStatus.WAITING,
-          givingItemId: 110, // Скейт - принадлежит music (authorId:5)
-          givingItem: mockItems.find(i => i.id === 110) || mockItems[0],
-          receivingItemId: 302, // Кресло - получит от max
-          receivingItem: mockItems.find(i => i.id === 302),
-          logisticsStatus: LogisticsStatus.NONE,
-        },
-      ],
-    }] : []),
-    // Многопользовательский обмен (4 участника) - активный, только если currentUserId === 1, 2, 3, или 4
-    ...((currentUserId >= 1 && currentUserId <= 4) ? [{
-      id: 'deal-105',
-      status: DealStatus.CONFIRMING,
-      deadline: '2026-08-20T23:59:59Z',
-      initiatorId: 1,
-      chain: [
-        {
-          userId: 1,
-          user: mockUsers[1],
-          status: ChainLinkStatus.ACCEPTED,
-          givingItemId: 102, // PS5 - принадлежит alex (authorId:1)
-          givingItem: mockItems.find(i => i.id === 102) || mockItems[0],
-          receivingItemId: 101, // Велосипед - authorId:2
-          receivingItem: mockItems.find(i => i.id === 101),
-          logisticsStatus: LogisticsStatus.NONE,
-        },
-        {
-          userId: 2,
-          user: mockUsers[2],
-          status: ChainLinkStatus.PENDING,
-          givingItemId: 101, // Велосипед - принадлежит dima (authorId:2)
-          givingItem: mockItems.find(i => i.id === 101) || mockItems[0],
-          receivingItemId: 301, // Монитор - authorId:3
-          receivingItem: mockItems.find(i => i.id === 301),
-          logisticsStatus: LogisticsStatus.NONE,
-        },
-        {
-          userId: 3,
-          user: mockUsers[3],
-          status: ChainLinkStatus.PENDING,
-          givingItemId: 301, // Монитор - принадлежит max (authorId:3)
-          givingItem: mockItems.find(i => i.id === 301) || mockItems[0],
-          receivingItemId: 401, // Фотоаппарат - authorId:4
-          receivingItem: mockItems.find(i => i.id === 401),
-          logisticsStatus: LogisticsStatus.NONE,
-        },
-        {
-          userId: 4,
-          user: mockUsers[4],
-          status: ChainLinkStatus.PENDING,
-          givingItemId: 401, // Фотоаппарат - принадлежит photo (authorId:4)
-          givingItem: mockItems.find(i => i.id === 401) || mockItems[0],
-          receivingItemId: 102, // PS5 - получит от alex (замыкание цепи)
-          receivingItem: mockItems.find(i => i.id === 102),
-          logisticsStatus: LogisticsStatus.NONE,
-        },
-      ],
-    }] : []),
-  ];
+  // Массив сделок теперь берется только из store
+  // Mock-данные удалены - сделки создаются только при нажатии "Встать в цепочку"
+  const allDeals = store.activeDeals;
 
   useEffect(() => {
-    // Загружаем обмены из store или используем мок
-    const deals = store.activeDeals.length > 0 ? store.activeDeals : mockDeals;
-    store.setDeals(deals);
-
     if (dealId) {
-      const foundDeal = deals.find(d => d.id === dealId);
+      const foundDeal = allDeals.find(d => d.id === dealId);
       if (foundDeal) {
         setDeal(foundDeal);
       } else {
-        // Если сделка не найдена, создаем мок
-        const timer = setTimeout(() => {
-          setDeal(mockDeals[0]);
-        }, 500);
-        return () => clearTimeout(timer);
+        // Если сделка не найдена, показываем заглушку
+        setDeal(null);
       }
     }
-  }, [dealId]);
+  }, [dealId, allDeals]);
 
-  const filteredDeals = mockDeals.filter(deal => {
+  const filteredDeals = allDeals.filter(deal => {
     const isInChain = deal.chain.some(link => link.userId === currentUserId);
     if (!isInChain) return false;
 
@@ -245,9 +69,40 @@ export const ExchangePage = () => {
 
   const handleDealConfirmed = () => {
     setShowJoinModal(false);
-    // После подтверждения создаем новый обмен
-    // В реальном приложении здесь был бы API вызов
-    navigate('/exchange/active');
+
+    // Создаем новую сделку с выбранным товаром
+    if (targetItem) {
+      // Находим товар, который пользователь хочет получить (первый доступный товар от другого пользователя)
+      const availableItems = mockItems.filter(i => i.authorId !== currentUserId && !i.isLocked);
+      const receivingItem = availableItems.length > 0 ? availableItems[0] : null;
+
+      const newDeal: IExchangeDeal = {
+        id: `deal-${Date.now()}`,
+        status: DealStatus.CONFIRMING,
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // +7 дней
+        initiatorId: currentUserId,
+        chain: [
+          {
+            userId: currentUserId,
+            user: mockUsers[currentUserId] || mockUsers[1],
+            status: ChainLinkStatus.ACCEPTED,
+            givingItemId: targetItem.id,
+            givingItem: targetItem,
+            receivingItemId: receivingItem?.id ?? undefined,
+            receivingItem: receivingItem ?? undefined,
+            logisticsStatus: LogisticsStatus.NONE,
+          },
+        ],
+      };
+
+      // Блокируем товар, который участвует в сделке
+      itemApi.lockItem(targetItem.id);
+
+      // Добавляем сделку в store
+      store.setDeals([...store.activeDeals, newDeal]);
+    }
+
+    navigate('/exchange');
   };
 
   // Если указан dealId, показываем детальную страницу

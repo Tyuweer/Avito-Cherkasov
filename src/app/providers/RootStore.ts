@@ -50,7 +50,8 @@ class RootStore {
     const deal = this.activeDeals.find(d => d.id === dealId);
     if (deal) {
       deal.status = newStatus;
-      if (newStatus === DealStatus.CANCELLED) {
+      // При отмене или завершении сделки - разблокируем все товары
+      if (newStatus === DealStatus.CANCELLED || newStatus === DealStatus.COMPLETED) {
         deal.chain.forEach((link: IChainLink) => {
           link.givingItem.isLocked = false;
         });

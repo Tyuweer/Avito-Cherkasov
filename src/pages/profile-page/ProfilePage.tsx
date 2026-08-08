@@ -255,17 +255,26 @@ export const ProfilePage = () => {
                 {myItems.map((item) => {
                   const originalOwner = item.authorId !== item.holderId;
                   const canEdit = item.authorId === item.holderId && !item.isLocked;
+                  const inDeal = item.isLocked;
                   return (
                     <div key={item.id} className="relative group flex flex-col">
+                      {/* Бейдж "Исключительное право" */}
                       {originalOwner && (
                         <div className="absolute -top-3 left-2 z-20 bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md flex items-center gap-1 pointer-events-none">
                           <span>⚡</span> Исключительное право
+                        </div>
+                      )}
+                      {/* Бейдж "Товар в сделке" */}
+                      {inDeal && (
+                        <div className="absolute -top-3 left-2 z-20 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md flex items-center gap-1 pointer-events-none">
+                          <span>🔒</span> Товар в сделке
                         </div>
                       )}
                       <div
                         className={`
                               bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all h-full flex flex-col
                               ${originalOwner ? "border-purple-200 ring-1 ring-purple-100" : "border-gray-200"}
+                              ${inDeal ? "border-orange-300 ring-1 ring-orange-100" : ""}
                           `}
                       >
                         <div className="relative">
