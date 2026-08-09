@@ -87,7 +87,8 @@ export class DealStore {
     const givingItem = selectedGivingItems[0];
     const targetOwner = mockUsers[targetItem.holderId] || mockUsers[1];
 
-    // First link: initiator
+    // First link: initiator - блокируем его товар, holderId остается у initiatorId (автор)
+    // но помечаем isLocked = true
     chain.push({
       userId: initiatorId,
       user: mockUsers[initiatorId] || mockUsers[1],
@@ -111,7 +112,8 @@ export class DealStore {
       logisticsStatus: LogisticsStatus.NONE,
     });
 
-    // Lock all items in the deal
+    // Lock all items in the deal - товары инициатора блокируются
+    // holderId остается authorId - право распоряжения не передается, только блокировка
     selectedGivingItems.forEach(item => {
       const idx = mockItems.findIndex(i => i.id === item.id);
       if (idx !== -1) {
@@ -119,6 +121,7 @@ export class DealStore {
       }
     });
 
+    // Target item also gets locked
     const targetIdx = mockItems.findIndex(i => i.id === targetItem.id);
     if (targetIdx !== -1) {
       mockItems[targetIdx].isLocked = true;
@@ -201,24 +204,23 @@ export class DealStore {
     return this.deals.find(d => d.id === dealId);
   }
 
-  // Reset all deals (for debug purposes)
+  // Reset all deals and clear localStorage (for debug purposes)
   resetAllDeals = (): void => {
     runInAction(() => {
-      // Unlock all items
+      // Clear localStorage for deals
+      localStorage.removeItem(STORAGE_KEY);
+
+      // Unlock all items and reset holderId to authorId
       mockItems.forEach(item => {
         item.isLocked = false;
-        // Reset holderId to authorId
         item.holderId = item.authorId;
       });
 
       // Clear all deals
       this.deals = [];
 
-      // Save to storage
-      this.saveToStorage();
-
-      // Reload page to refresh state
-      window.location.reload();
+      // Also clear items state from localStorage
+      localStorage.removeItem('items_state');
     });
   };
 }

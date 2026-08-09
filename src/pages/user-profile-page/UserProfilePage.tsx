@@ -1,9 +1,11 @@
 // src/pages/user-profile-page/UserProfilePage.tsx
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { IUser, IItem } from '../../shared/api/types';
-import { authApi } from '../../shared/api/authApi';
-import { mockItems } from '../../entities/item/api/itemApi';
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import type { IUser, IItem } from "../../shared/api/types";
+import { authApi } from "../../shared/api/authApi";
+import { mockItems } from "../../entities/item/api/itemApi";
+import { dealStore } from "../../app/providers/DealStore";
+import { DealStatus } from "../../shared/api/types";
 
 export const UserProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,9 +23,35 @@ export const UserProfilePage: React.FC = () => {
           const userData = await authApi.getUserById(userId);
           if (userData) {
             setUser(userData);
-            // Show all items where user is either author OR holder
+
+            // Получаем активные сделки для этого пользователя
+            const userDeals = dealStore
+              .getDealsForUser(userId)
+              .filter(
+                (d) =>
+                  d.status === DealStatus.ACTIVE ||
+                  d.status === DealStatus.CONFIRMING ||
+                  d.status === DealStatus.CONFIRMED ||
+                  d.status === DealStatus.PENDING,
+              );
+
+            // Находим ID товаров, которые пользователь получит в сделке (исключительное право)
+            const exclusiveRightItemIds = new Set<number>();
+            userDeals.forEach((deal) => {
+              deal.chain.forEach((link) => {
+                // Если этот пользователь должен получить товар (receivingItem)
+                if (link.userId === userId && link.receivingItemId) {
+                  exclusiveRightItemIds.add(link.receivingItemId);
+                }
+              });
+            });
+
+            // Показываем:
+            // 1. Собственные товары пользователя (authorId === userId)
+            // 2. Товары с исключительным правом (те, которые пользователь получит в сделке)
             const userItems = mockItems.filter(
-              item => item.authorId === userId || item.holderId === userId
+              (item) =>
+                item.authorId === userId || exclusiveRightItemIds.has(item.id),
             );
             setItems(userItems);
           } else {
@@ -31,7 +59,7 @@ export const UserProfilePage: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error('Failed to load user data:', error);
+        console.error("Failed to load user data:", error);
         setUser(null);
       } finally {
         setLoading(false);
@@ -52,7 +80,9 @@ export const UserProfilePage: React.FC = () => {
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <h2 className="text-2xl font-bold text-slate-800 mb-4">Пользователь не найден</h2>
+        <h2 className="text-2xl font-bold text-slate-800 mb-4">
+          Пользователь не найден
+        </h2>
         <button
           onClick={() => navigate(-1)}
           className="px-6 py-3 bg-[#00AAFF] text-white rounded-lg hover:bg-[#0095E0] transition font-medium"
@@ -67,23 +97,32 @@ export const UserProfilePage: React.FC = () => {
     <div className="max-w-6xl mx-auto p-4 md:p-8">
       {/* Profile Header */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 flex flex-col md:flex-row items-center md:items-start gap-6">
-        <Link to={`/user/${user.id}`} className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg flex-shrink-0 hover:opacity-90 transition-opacity overflow-hidden">
+        <Link
+          to={`/user/${user.id}`}
+          className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg flex-shrink-0 hover:opacity-90 transition-opacity overflow-hidden"
+        >
           {user.avatarUrl ? (
-            <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+            <img
+              src={user.avatarUrl}
+              alt=""
+              className="w-full h-full object-cover"
+            />
           ) : (
             user.username.charAt(0).toUpperCase()
           )}
         </Link>
 
         <div className="flex-1 text-center md:text-left">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">{user.username}</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">
+            {user.username}
+          </h1>
 
           <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-500 mb-4">
             <span className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full font-medium">
               ★ {user.rating} Рейтинг
             </span>
             <span className="flex items-center gap-1 bg-slate-100 px-3 py-1 rounded-full">
-              📍 {user.pvzAddress || 'ПВЗ не указан'}
+              📍 {user.pvzAddress || "ПВЗ не указан"}
             </span>
             {user.declineCount > 0 && (
               <span className="flex items-center gap-1 bg-red-50 text-red-600 px-3 py-1 rounded-full">
@@ -93,7 +132,8 @@ export const UserProfilePage: React.FC = () => {
           </div>
 
           <p className="text-slate-600 max-w-2xl">
-            Участник системы многостороннего обмена. Ценит честность и пунктуальность.
+            Участник системы многостороннего обмена. Ценит честность и
+            пунктуальность.
           </p>
         </div>
 
@@ -113,15 +153,22 @@ export const UserProfilePage: React.FC = () => {
 
         {items.length === 0 ? (
           <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-            <p className="text-slate-500">У пользователя пока нет товаров для обмена</p>
+            <p className="text-slate-500">
+              У пользователя пока нет товаров для обмена
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {items.map((item) => {
+              // Товар в сделке (исключительное право у текущего пользователя)
+              const hasExclusiveRight =
+                item.authorId !== user?.id && item.isLocked;
+              const isOwner = item.authorId === user?.id;
+
               return (
                 <div
                   key={item.id}
-                  className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow group"
+                  className={`bg-white rounded-xl border overflow-hidden hover:shadow-md transition-shadow group ${hasExclusiveRight ? "border-purple-200 ring-1 ring-purple-100" : "border-slate-200"}`}
                 >
                   <div className="aspect-video bg-slate-100 relative overflow-hidden">
                     <img
@@ -129,17 +176,25 @@ export const UserProfilePage: React.FC = () => {
                       alt={item.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    {item.isLocked && (
-                      <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded font-bold shadow-sm">
+                    {/* Бейдж "В сделке" для всех заблокированных товаров */}
+                    {item.isLocked && isOwner && (
+                      <div className="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded font-bold shadow-sm">
                         В сделке
                       </div>
                     )}
-                    {/* Hide "exclusive right" badge on other users' profiles */}
+                    {/* Бейдж "Исключительное право" - если товар чужой, но у нас право распоряжения */}
+                    {hasExclusiveRight && (
+                      <div className="absolute top-2 left-2 bg-purple-600 text-white text-xs px-2 py-1 rounded font-bold shadow-sm flex items-center gap-1">
+                        <span>⚡</span> Исключительное право
+                      </div>
+                    )}
                   </div>
 
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-bold text-slate-800 truncate pr-2">{item.title}</h3>
+                      <h3 className="font-bold text-slate-800 truncate pr-2">
+                        {item.title}
+                      </h3>
                       <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded whitespace-nowrap">
                         {item.quantity} {item.unit}
                       </span>
@@ -150,15 +205,22 @@ export const UserProfilePage: React.FC = () => {
 
                     {item.wishes && item.wishes.length > 0 && (
                       <div className="mb-3 pt-3 border-t border-slate-100">
-                        <p className="text-xs text-slate-400 mb-2">Хочет взамен:</p>
+                        <p className="text-xs text-slate-400 mb-2">
+                          Хочет взамен:
+                        </p>
                         <div className="flex flex-wrap gap-1">
                           {item.wishes.slice(0, 3).map((wish, i) => (
-                            <span key={i} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                            <span
+                              key={i}
+                              className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded"
+                            >
                               {wish}
                             </span>
                           ))}
                           {item.wishes.length > 3 && (
-                            <span className="text-xs text-slate-400">+{item.wishes.length - 3}</span>
+                            <span className="text-xs text-slate-400">
+                              +{item.wishes.length - 3}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -166,7 +228,12 @@ export const UserProfilePage: React.FC = () => {
 
                     <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100">
                       <span>{item.category}</span>
-                      <span>ID: {item.id}</span>
+                      {!isOwner && (
+                        <span className="text-purple-600 font-medium">
+                          Владелец: другой пользователь
+                        </span>
+                      )}
+                      {isOwner && <span>ID: {item.id}</span>}
                     </div>
 
                     <Link
@@ -184,4 +251,4 @@ export const UserProfilePage: React.FC = () => {
       </div>
     </div>
   );
-}
+};

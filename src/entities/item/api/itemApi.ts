@@ -105,7 +105,7 @@ export const mockItems: IItem[] = applyPersistedState([
     quantity: 1,
     unit: 'шт',
     authorId: 2,
-    holderId: 1, // Transferred to Alex
+    holderId: 2, // Dima owns and holds his bicycle
     isLocked: false,
     createdAt: '2026-08-01T10:00:00Z',
     wishes: ['Апельсины', 'Лодка', 'Гитара'],

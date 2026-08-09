@@ -44,9 +44,9 @@ export const ProfilePage = () => {
   useEffect(() => {
     if (currentUser) {
       itemApi.getMyItems().then((items) => {
-        // ИСПРАВЛЕНИЕ: Фильтруем по holderId (кто распоряжается), а не по authorId (кто создал)
-        // Теперь тут будут и свои товары, и те, на которые вам передали право (Велосипед)
-        setMyItems(items.filter((i) => i.holderId === currentUser.id));
+        // Показываем ТОЛЬКО собственные товары пользователя (authorId === currentUser.id)
+        // Товары с isLocked помечаются как "в сделке" - их нельзя редактировать/удалять
+        setMyItems(items.filter((i) => i.authorId === currentUser.id));
       });
       setNewUsername(currentUser.username);
       setAvatarUrl(currentUser.avatarUrl || "");
@@ -60,7 +60,7 @@ export const ProfilePage = () => {
     if (currentUser) {
       itemApi
         .getMyItems()
-        .then((items) => setMyItems(items.filter((i) => i.holderId === currentUser.id)));
+        .then((items) => setMyItems(items.filter((i) => i.authorId === currentUser.id)));
       // Reload wishes in case new ones were added
       authApi.getUserWishes(currentUser.id).then(setMyWishes);
     }
@@ -71,14 +71,14 @@ export const ProfilePage = () => {
     if (currentUser) {
       itemApi
         .getMyItems()
-        .then((items) => setMyItems(items.filter((i) => i.holderId === currentUser.id)));
+        .then((items) => setMyItems(items.filter((i) => i.authorId === currentUser.id)));
     }
   };
 
   const handleEditItem = (item: IItem) => {
-    // Check if item belongs to user (authorId === holderId) and is not locked
-    if (item.authorId !== item.holderId) {
-      alert("Нельзя редактировать товар с исключительным правом. Сначала нужно вернуть право владельцу.");
+    // Check if item belongs to user (authorId === currentUser.id) and is not locked
+    if (item.authorId !== currentUser?.id) {
+      alert("Нельзя редактировать чужой товар.");
       return;
     }
     if (item.isLocked) {
@@ -93,9 +93,9 @@ export const ProfilePage = () => {
     const item = mockItems.find(i => i.id === itemId);
     if (!item) return;
 
-    // Cannot delete items with exclusive rights (authorId !== holderId)
-    if (item.authorId !== item.holderId) {
-      alert("Нельзя удалить товар с исключительным правом. Сначала нужно вернуть право владельцу или дождаться отмены сделки.");
+    // Cannot delete items that don't belong to user
+    if (item.authorId !== currentUser?.id) {
+      alert("Нельзя удалить чужой товар.");
       return;
     }
 
@@ -254,29 +254,21 @@ export const ProfilePage = () => {
             {myItems.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {myItems.map((item) => {
-                  // Show "Exclusive right" badge ONLY if holderId != authorId AND item is locked (in active deal)
-                  const hasExclusiveRight = item.holderId !== item.authorId && item.isLocked;
-                  const canEdit = item.authorId === item.holderId && !item.isLocked;
+                  // Товар в сделке - заблокирован и не может быть отредактирован/удален
                   const inDeal = item.isLocked;
+                  const canEdit = !item.isLocked;
                   return (
                     <div key={item.id} className="relative group flex flex-col">
-                      {/* Бейдж "Исключительное право" - только если право передано И товар в сделке */}
-                      {hasExclusiveRight && (
-                        <div className="absolute -top-3 left-2 z-20 bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md flex items-center gap-1 pointer-events-none">
-                          <span>⚡</span> Исключительное право
-                        </div>
-                      )}
                       {/* Бейдж "Товар в сделке" */}
                       {inDeal && (
                         <div className="absolute -top-3 left-2 z-20 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md flex items-center gap-1 pointer-events-none">
-                          <span>🔒</span> Товар в сделке
+                          <span>🔒</span> В сделке
                         </div>
                       )}
                       <div
                         className={`
                               bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all h-full flex flex-col
-                              ${hasExclusiveRight ? "border-purple-200 ring-1 ring-purple-100" : "border-gray-200"}
-                              ${inDeal ? "border-orange-300 ring-1 ring-orange-100" : ""}
+                              ${inDeal ? "border-orange-300 ring-1 ring-orange-100" : "border-gray-200"}
                           `}
                       >
                         <div className="relative">
@@ -293,7 +285,7 @@ export const ProfilePage = () => {
                               ✎
                             </button>
                           )}
-                          {!hasExclusiveRight && !item.isLocked && (
+                          {!item.isLocked && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
