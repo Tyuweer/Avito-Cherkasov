@@ -72,32 +72,37 @@ export class DealStore {
     });
   }
 
-  private findPendingDealForItemIds(itemIds: number[]): { deal: IExchangeDeal; matchId: number } | undefined {
+  private findPendingDealForItemIds(itemIds: number[]): { deal: IExchangeDeal; insertAfterIndex: number } | undefined {
     for (const deal of this.deals) {
       if (deal.status !== DealStatusEnum.PENDING) continue;
+
+      // Prefer matching currently held items (receivingItemId) before matching original giving items.
       for (const itemId of itemIds) {
-        const match = deal.chain.find(link => link.givingItemId === itemId || link.receivingItemId === itemId);
-        if (match) {
-          return { deal, matchId: itemId };
+        const receiveIndex = deal.chain.findIndex(link => link.receivingItemId === itemId);
+        if (receiveIndex !== -1) {
+          return { deal, insertAfterIndex: receiveIndex };
+        }
+      }
+
+      for (const itemId of itemIds) {
+        const giveIndex = deal.chain.findIndex(link => link.givingItemId === itemId);
+        if (giveIndex !== -1) {
+          return { deal, insertAfterIndex: giveIndex };
         }
       }
     }
     return undefined;
   }
 
-  private appendChainLink(deal: IExchangeDeal, newLink: IExchangeDeal['chain'][number], afterItemId: number) {
-    const receiveIndex = deal.chain.findIndex(link => link.receivingItemId === afterItemId);
-    const giveIndex = deal.chain.findIndex(link => link.givingItemId === afterItemId);
-    const insertIndex = receiveIndex !== -1 ? receiveIndex : giveIndex;
-
-    if (insertIndex === -1) {
+  private appendChainLink(deal: IExchangeDeal, newLink: IExchangeDeal['chain'][number], insertAfterIndex: number) {
+    if (insertAfterIndex < 0 || insertAfterIndex >= deal.chain.length) {
       deal.chain.push(newLink);
       return;
     }
 
-    const nextIndex = insertIndex + 1;
-    const nextLink = deal.chain[nextIndex] || deal.chain[0];
-    deal.chain.splice(nextIndex, 0, newLink);
+    const insertIndex = insertAfterIndex + 1;
+    const nextLink = deal.chain[insertIndex] || deal.chain[0];
+    deal.chain.splice(insertIndex, 0, newLink);
 
     if (nextLink) {
       nextLink.receivingItemId = newLink.givingItemId;
@@ -140,12 +145,12 @@ export class DealStore {
 
     if (existingDealMatch) {
       runInAction(() => {
-        this.appendChainLink(existingDealMatch.deal, newChainLink, existingDealMatch.matchId);
+        this.appendChainLink(existingDealMatch.deal, newChainLink, existingDealMatch.insertAfterIndex);
         this.syncItemLockStates();
         this.saveToStorage();
         this.isLoading = false;
       });
-      console.debug('DealStore: appendChainLink -> deal', existingDealMatch.deal.id, 'newLink:', newChainLink, 'matchId:', existingDealMatch.matchId);
+      console.debug('DealStore: appendChainLink -> deal', existingDealMatch.deal.id, 'newLink:', newChainLink, 'insertAfterIndex:', existingDealMatch.insertAfterIndex);
 
       // When appending to an existing pending chain, transfer rights for the giving item to the target holder.
       itemStore.transferRights(givingItem.id, targetItem.holderId, false);

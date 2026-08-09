@@ -96,7 +96,7 @@ export const ExchangePage = observer(() => {
               Мои обмены
             </button>
             <span>/</span>
-            <span className="text-gray-900 font-medium">Сделка #{deal.id}</span>
+            <span className="text-gray-900 font-medium">Сделка</span>
           </div>
 
           <ChainVisualizer deal={deal} currentUserId={currentUserId} />
@@ -125,7 +125,7 @@ export const ExchangePage = observer(() => {
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase">Участников</p>
-                <p className="font-medium text-gray-900">{deal.chain.length}</p>
+                <p className="font-medium text-gray-900">{new Set(deal.chain.map((link) => link.userId)).size}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase">Дедлайн</p>
@@ -294,13 +294,17 @@ export const ExchangePage = observer(() => {
       ) : (
         <div className="space-y-4">
           {filteredDeals.map((deal) => {
-            const currentUserLink = deal.chain.find(
+            const currentUserLinkIndex = deal.chain.findIndex(
               (link) => link.userId === currentUserId,
             );
+            const currentUserLink = deal.chain[currentUserLinkIndex];
             const givingItem = currentUserLink?.givingItem;
-            const receivingItem = currentUserLink?.receivingItem || deal.chain[deal.chain.length - 1]?.givingItem;
-            const dealTypeLabel = deal.chain.length > 2 ? `Цепочка из ${deal.chain.length} участников` : 'Прямой обмен';
-            const participantAvatars = deal.chain.slice(0, 4);
+            const receivingItem = currentUserLink
+              ? deal.chain[(currentUserLinkIndex + deal.chain.length - 1) % deal.chain.length].givingItem
+              : deal.chain[deal.chain.length - 1]?.givingItem;
+            const uniqueParticipants = Array.from(new Map(deal.chain.map((link) => [link.userId, link])).values());
+            const dealTypeLabel = uniqueParticipants.length > 2 ? `Цепочка из ${uniqueParticipants.length} участников` : 'Прямой обмен';
+            const participantAvatars = uniqueParticipants.slice(0, 4);
  
             return (
               <div
@@ -376,14 +380,14 @@ export const ExchangePage = observer(() => {
                             {link.user.username.charAt(0).toUpperCase()}
                           </div>
                         ))}
-                        {deal.chain.length > participantAvatars.length && (
+                        {uniqueParticipants.length > participantAvatars.length && (
                           <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-xs font-semibold text-slate-500 shadow-sm">
-                            +{deal.chain.length - participantAvatars.length}
+                            +{uniqueParticipants.length - participantAvatars.length}
                           </div>
                         )}
                       </div>
                       <span className="font-medium text-gray-900">
-                        {deal.chain.length} участника
+                        {uniqueParticipants.length} участника
                       </span>
                     </div>
                     <div className="text-sm text-gray-500 text-left lg:text-right">

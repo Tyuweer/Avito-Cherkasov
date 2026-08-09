@@ -108,14 +108,13 @@ export const ChainVisualizer: React.FC<ChainVisualizerProps> = ({ deal, currentU
             if (index === 0) {
               // Первый получает от последнего
               receivingItem = deal.chain[deal.chain.length - 1].givingItem;
-              receivingLabel = "Получает (финал)";
             } else {
               // Остальные получают от предыдущего
               receivingItem = deal.chain[index - 1].givingItem;
             }
 
             return (
-              <React.Fragment key={link.userId}>
+              <React.Fragment key={`${link.userId}-${index}`}>
                 {/* Колонка участника */}
                 <div className="flex flex-col items-center w-64">
 

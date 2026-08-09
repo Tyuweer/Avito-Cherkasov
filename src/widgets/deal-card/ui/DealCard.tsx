@@ -17,16 +17,24 @@ export const DealCard: React.FC<DealCardProps> = ({
   onCancel
 }) => {
   // Find the current user's link in the chain
-  const myLink = deal.chain.find(link => link.userId === currentUserId);
+  const myIndex = deal.chain.findIndex(link => link.userId === currentUserId);
+  const myLink = myIndex !== -1 ? deal.chain[myIndex] : undefined;
 
   if (!myLink) return null;
 
-  // Determine if I'm the recipient (need to confirm)
-  const isRecipient = myLink.status === ChainLinkStatus.PENDING && deal.status === DealStatus.PENDING;
+  // Determine the current user's received item by the previous chain link
+  const receivesItem = deal.chain[(myIndex + deal.chain.length - 1) % deal.chain.length]?.givingItem;
+
+  // The user who should confirm is the last pending link in the chain
+  const lastPendingLink = [...deal.chain].reverse().find(link => link.status === ChainLinkStatus.PENDING);
+  const isRecipient = !!lastPendingLink && lastPendingLink.userId === currentUserId && deal.status === DealStatus.PENDING;
 
   // Determine if I can cancel (any participant can cancel PENDING deal, initiator can cancel ACTIVE)
   const canCancel = deal.status === DealStatus.PENDING ||
                     (deal.status === DealStatus.ACTIVE && deal.initiatorId === currentUserId);
+
+  // Get item info for display
+  const givesItem = myLink.givingItem;
 
   // Get status badge
   const getStatusBadge = () => {
@@ -60,16 +68,12 @@ export const DealCard: React.FC<DealCardProps> = ({
     }
   };
 
-  // Get item info for display
-  const givesItem = myLink.givingItem;
-  const receivesItem = myLink.receivingItem;
-
   return (
     <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-bold text-gray-900">Сделка #{deal.id}</h3>
+          <h3 className="text-lg font-bold text-gray-900">Сделка</h3>
           <p className="text-sm text-gray-500">
             Дедлайн: {new Date(deal.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
           </p>
@@ -109,8 +113,8 @@ export const DealCard: React.FC<DealCardProps> = ({
       <div className="mb-6">
         <h4 className="text-sm font-bold text-gray-700 mb-2">Участники:</h4>
         <div className="space-y-2">
-          {deal.chain.map((link, idx) => (
-            <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+          {Array.from(new Map(deal.chain.map(link => [link.userId, link])).values()).map((link, idx) => (
+            <div key={`${link.userId}-${idx}`} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
                   {link.user.username.charAt(0).toUpperCase()}
