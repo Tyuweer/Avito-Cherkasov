@@ -1,6 +1,7 @@
 // src/pages/exchange-page/ExchangePage.tsx
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
+import { observer } from 'mobx-react-lite';
 import { ArrowLeft } from "lucide-react";
 import { ChainVisualizer } from "../../widgets/chain-visualizer/ui/ChainVisualizer";
 import type { IExchangeDeal, IItem } from "../../shared/api/types";
@@ -10,18 +11,16 @@ import {
   LogisticsStatus,
 } from "../../shared/api/types";
 import { mockUsers } from "../../entities/user/api/userApi";
-import {
-  mockItems,
-  itemApi,
-  getItemsByUserId,
-} from "../../entities/item/api/itemApi";
+import { itemApi } from "../../entities/item/api/itemApi";
+import { itemStore } from '../../app/providers/ItemStore';
 import { useAuthStore } from "../../app/hooks/useAuthStore";
 import { dealStore } from "../../app/providers/DealStore";
 import { JoinChainModal } from "../../features/join-chain/ui/JoinChainModal";
+import { DealCard } from "../../widgets/deal-card/ui/DealCard";
 
 type FilterType = "active" | "completed" | "cancelled" | "all";
 
-export const ExchangePage = () => {
+export const ExchangePage = observer(() => {
   const { dealId } = useParams<{ dealId: string }>();
   const navigate = useNavigate();
   const [deal, setDeal] = useState<IExchangeDeal | null>(null);
@@ -33,12 +32,9 @@ export const ExchangePage = () => {
   const currentUserId = authStore.user?.id ?? 1;
 
   // Фильтруем товары - оставляем только те, где currentUserId является authorId или holderId
-  const myItems = useMemo(() => {
-    return mockItems.filter(
-      (item) =>
-        item.authorId === currentUserId || item.holderId === currentUserId,
-    );
-  }, [currentUserId]);
+  const myItems = itemStore.all.filter(
+    (item) => item.authorId === currentUserId || item.holderId === currentUserId,
+  );
 
   // Массив сделок берется из dealStore
   const allDeals = dealStore.deals;
@@ -208,6 +204,22 @@ export const ExchangePage = () => {
               ))}
             </div>
           </div>
+
+          {/* Добавляем DealCard, чтобы показать действия (Подтвердить / Отменить) прямо на детальной странице сделки */}
+          <div className="mt-6">
+            <DealCard
+              deal={deal}
+              currentUserId={currentUserId}
+              onConfirm={(id) => {
+                console.debug('UI: onConfirm clicked for', id);
+                dealStore.confirmDeal(id);
+              }}
+              onCancel={(id, reason) => {
+                console.debug('UI: onCancel clicked for', id, reason);
+                dealStore.cancelDeal(id, reason);
+              }}
+            />
+          </div>
         </div>
 
         {showJoinModal && targetItem && (
@@ -286,68 +298,54 @@ export const ExchangePage = () => {
               (link) => link.userId === currentUserId,
             );
             const givingItem = currentUserLink?.givingItem;
-            const receivingItem =
-              currentUserLink?.receivingItem ||
-              deal.chain.find((link) => link.userId === deal.initiatorId)
-                ?.givingItem;
-
+            const receivingItem = currentUserLink?.receivingItem || deal.chain[deal.chain.length - 1]?.givingItem;
+            const dealTypeLabel = deal.chain.length > 2 ? `Цепочка из ${deal.chain.length} участников` : 'Прямой обмен';
+            const participantAvatars = deal.chain.slice(0, 4);
+ 
             return (
               <div
                 key={deal.id}
                 onClick={() => navigate(`/exchange/${deal.id}`)}
                 className="group bg-white hover:bg-blue-50/30 p-6 rounded-2xl border border-gray-200 hover:border-[#00AAFF] transition-all cursor-pointer shadow-sm"
               >
-                <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
-                  {/* Товары */}
-                  <div className="flex items-center gap-4 w-full lg:w-auto justify-center">
-                    {givingItem && (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-100 bg-gray-50 shadow-inner">
-                          <img
-                            src={givingItem.imageUrl}
-                            alt={givingItem.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                          Отдаете
-                        </span>
-                        <span className="text-sm font-bold text-gray-900 text-center leading-tight max-w-[100px] truncate">
-                          {givingItem.title}
-                        </span>
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                  <div className="flex items-center gap-4 w-full lg:w-auto justify-start">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-100 bg-gray-50 shadow-inner">
+                        <img
+                          src={givingItem?.imageUrl || ''}
+                          alt={givingItem?.title || ''}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                    )}
-
-                    <div className="flex flex-col items-center justify-center px-2">
-                      <div className="text-2xl text-[#00AAFF] group-hover:animate-pulse">
-                        ⇄
-                      </div>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">
-                        Обмен
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Отдаете</span>
+                      <span className="text-sm font-bold text-gray-900 text-center leading-tight max-w-[100px] truncate">
+                        {givingItem?.title || '—'}
                       </span>
                     </div>
-
-                    {receivingItem && (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-green-100 bg-green-50 shadow-inner">
-                          <img
-                            src={receivingItem.imageUrl}
-                            alt={receivingItem.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <span className="text-xs font-bold text-green-600 uppercase tracking-wide">
-                          Получаете
-                        </span>
-                        <span className="text-sm font-bold text-gray-900 text-center leading-tight max-w-[100px] truncate">
-                          {receivingItem.title}
-                        </span>
+ 
+                    <div className="flex flex-col items-center justify-center px-2">
+                      <div className="text-2xl text-[#00AAFF] group-hover:animate-pulse">⇄</div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">{dealTypeLabel}</span>
+                    </div>
+ 
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-green-100 bg-green-50 shadow-inner">
+                        <img
+                          src={receivingItem?.imageUrl || ''}
+                          alt={receivingItem?.title || ''}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                    )}
+                      <span className="text-xs font-bold text-green-600 uppercase tracking-wide">Получаете</span>
+                      <span className="text-sm font-bold text-gray-900 text-center leading-tight max-w-[100px] truncate">
+                        {receivingItem?.title || '—'}
+                      </span>
+                    </div>
                   </div>
-
+ 
                   {/* Информация */}
-                  <div className="flex flex-col items-center lg:items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-gray-100 pt-4 lg:pt-0 lg:pl-6">
+                  <div className="flex flex-col items-start lg:items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-gray-100 pt-4 lg:pt-0 lg:pl-6">
                     <div className="flex items-center gap-2">
                       <span
                         className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase border ${
@@ -368,15 +366,28 @@ export const ExchangePage = () => {
                         {deal.status === DealStatus.PENDING && "Ожидание"}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-500 text-center lg:text-right">
-                      Участников:{" "}
-                      <span className="font-bold text-gray-900">
-                        {deal.chain.length}
-                      </span>{" "}
-                      • Дедлайн:{" "}
-                      <span className="font-bold text-gray-900">
-                        {new Date(deal.deadline).toLocaleDateString("ru-RU")}
+                    <div className="flex items-center gap-2 text-sm text-gray-500"> 
+                      <div className="flex -space-x-2">
+                        {participantAvatars.map((link) => (
+                          <div
+                            key={link.userId}
+                            className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-xs font-bold text-slate-600 shadow-sm"
+                          >
+                            {link.user.username.charAt(0).toUpperCase()}
+                          </div>
+                        ))}
+                        {deal.chain.length > participantAvatars.length && (
+                          <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-xs font-semibold text-slate-500 shadow-sm">
+                            +{deal.chain.length - participantAvatars.length}
+                          </div>
+                        )}
+                      </div>
+                      <span className="font-medium text-gray-900">
+                        {deal.chain.length} участника
                       </span>
+                    </div>
+                    <div className="text-sm text-gray-500 text-left lg:text-right">
+                      Дедлайн: <span className="font-bold text-gray-900">{new Date(deal.deadline).toLocaleDateString("ru-RU")}</span>
                     </div>
                     <button className="mt-1 px-6 py-2.5 bg-gray-100 group-hover:bg-[#00AAFF] group-hover:text-white text-gray-700 rounded-xl text-sm font-bold transition-all w-full lg:w-auto shadow-sm">
                       Подробнее
@@ -386,8 +397,9 @@ export const ExchangePage = () => {
               </div>
             );
           })}
+
         </div>
       )}
     </div>
   );
-};
+})

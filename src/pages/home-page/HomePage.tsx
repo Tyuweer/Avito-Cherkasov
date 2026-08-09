@@ -1,69 +1,46 @@
 // src/pages/home-page/HomePage.tsx
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { observer } from 'mobx-react-lite';
 import { ItemCard } from '../../entities/item/ui/ItemCard';
-import { itemApi } from '../../entities/item/api/itemApi';
-import type { IItem } from '../../shared/api/types';
+import { itemStore } from '../../app/providers/ItemStore';
+import { dealStore } from '../../app/providers/DealStore';
 import { useAuthStore } from '../../app/hooks/useAuthStore';
 
-export const HomePage = () => {
+export const HomePage = observer(() => {
   const authStore = useAuthStore();
   const currentUserId = authStore.user?.id;
 
-  const [items, setItems] = useState<IItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [allItems, setAllItems] = useState<IItem[]>([]);
 
-  const loadItems = () => {
-    itemApi.getMyItems().then(data => {
-      let filtered: IItem[];
-
-      if (currentUserId !== undefined && currentUserId !== null) {
-        // Пользователь авторизован - применяем логику видимости:
-        // 1. Скрываем товары, где isLocked === true И holderId !== currentUserId (товары в сделке, не принадлежащие мне)
-        // 2. Показываем товары, где !isLocked (свободные товары для обмена)
-        // Свои товары (authorId === currentUserId или holderId === currentUserId) показываем только в профиле
-        filtered = data.filter(i => {
-          // Если товар заблокирован и я не держатель права - скрываем
-          if (i.isLocked && i.holderId !== currentUserId) {
-            return false;
-          }
-          // Свои товары и товары с исключительным правом скрываем из поиска (они в профиле)
-          if (i.authorId === currentUserId || i.holderId === currentUserId) {
-            return false;
-          }
-          // Показываем только свободные товары других пользователей
-          return true;
-        });
-      } else {
-        // Пользователь не авторизован - показываем все незаблокированные товары
-        filtered = data.filter(i => !i.isLocked);
-      }
-
-      setAllItems(filtered);
-      setItems(filtered); // Изначально показываем все доступные
-    });
-  };
-
-  useEffect(() => {
-    loadItems();
-  }, [currentUserId]);
-
-  const handleSearch = () => {
-    // Убрали setHasSearched(true);
-    const query = searchQuery.trim().toLowerCase();
-
-    if (!query) {
-      // Если поиск пустой - возвращаем все товары
-      setItems(allItems);
-      return;
+  const allItems = itemStore.all.filter(i => {
+    if (dealStore.isItemReserved(i.id)) {
+      return false;
     }
 
-    // Фильтрация
-    const results = allItems.filter(i =>
-      i.title.toLowerCase().includes(query) ||
-      i.category.toLowerCase().includes(query)
-    );
-    setItems(results);
+    if (currentUserId !== undefined && currentUserId !== null) {
+      if (i.isLocked && i.holderId !== currentUserId) {
+        return false;
+      }
+      if (i.authorId === currentUserId || i.holderId === currentUserId) {
+        return false;
+      }
+      if (i.holderId !== i.authorId) {
+        return false;
+      }
+      return true;
+    }
+    if (i.holderId !== i.authorId) {
+      return false;
+    }
+    return !i.isLocked;
+  });
+
+  const items = searchQuery.trim()
+    ? allItems.filter(i => i.title.toLowerCase().includes(searchQuery.trim().toLowerCase()) || i.category.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : allItems;
+
+  const handleSearch = () => {
+    setSearchQuery(searchQuery.trim());
   };
 
   return (
@@ -122,7 +99,7 @@ export const HomePage = () => {
                       По вашему запросу "{searchQuery}" нет товаров. Попробуйте изменить название или добавьте свой товар в профиле, чтобы запустить цепочку.
                   </p>
                   <button
-                    onClick={() => {setSearchQuery(''); setItems(allItems);}}
+                    onClick={() => setSearchQuery('')}
                     className="mt-6 text-[#00AAFF] font-medium hover:underline"
                   >
                       Сбросить поиск
@@ -132,4 +109,4 @@ export const HomePage = () => {
       </div>
     </div>
   );
-};
+});

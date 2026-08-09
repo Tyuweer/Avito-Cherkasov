@@ -6,12 +6,15 @@ import { mockUsers } from '../../user/api/userApi';
 
 interface ItemCardProps {
   item: IItem;
-  showRoleBadges?: boolean; // Показывать ли бейджи роли (для профиля)
+  currentUserId?: number;
 }
 
-export const ItemCard = ({ item, showRoleBadges = false }: ItemCardProps) => {
+export const ItemCard = ({ item, currentUserId }: ItemCardProps) => {
   const navigate = useNavigate();
   const isRightTransferred = item.holderId !== item.authorId;
+  const isHolder = currentUserId !== undefined && item.holderId === currentUserId;
+  const showExclusiveBadge = isRightTransferred && isHolder;
+  const labelTitle = isHolder ? 'Распорядитель' : 'Владелец';
   const holder = mockUsers[item.holderId] || { id: 0, username: 'Unknown', rating: 0, declineCount: 0 };
 
   const handleClick = () => {
@@ -25,10 +28,9 @@ export const ItemCard = ({ item, showRoleBadges = false }: ItemCardProps) => {
     >
 
 
-      {/* Бейдж "Передано в цепочку" для владельца, который отдал право */}
-      {isRightTransferred && item.isLocked && item.authorId === holder.id && (
-        <div className="absolute top-2 left-2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded z-10 shadow-sm">
-          Передано в цепочку
+      {showExclusiveBadge && (
+        <div className="absolute top-2 left-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded z-10 shadow-sm">
+          ⚡ Исключительное право
         </div>
       )}
 
@@ -69,7 +71,7 @@ export const ItemCard = ({ item, showRoleBadges = false }: ItemCardProps) => {
 
         <div className="pt-3 border-t border-gray-100">
           <div className="text-[10px] uppercase text-gray-400 font-semibold mb-1">
-            {isRightTransferred ? 'Распорядитель' : 'Владелец'}
+            {labelTitle}
           </div>
           <UserBadge user={holder} size="sm" />
         </div>

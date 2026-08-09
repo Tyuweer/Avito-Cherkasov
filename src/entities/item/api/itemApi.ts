@@ -1,5 +1,5 @@
 // src/entities/item/api/itemApi.ts
-import type { IItem, IExchangeDeal, IChainLink, IUser } from '../../../shared/api/types';
+import type { IItem, IExchangeDeal, IChainLink } from '../../../shared/api/types';
 import { DealStatus, ChainLinkStatus, LogisticsStatus } from '../../../shared/api/types';
 import { mockUsers } from '../../user/api/userApi';
 // import { apiClient } from '../../../shared/api/client';
@@ -54,7 +54,7 @@ const applyPersistedState = (items: IItem[]): IItem[] => {
 
 // Items organized by user (authorId)
 // Each user has their own unique items with specific wishes
-export const mockItems: IItem[] = applyPersistedState([
+const initialMockItems: IItem[] = applyPersistedState([
   // === Alex_Dev (id: 1) items ===
   {
     id: 102,
@@ -236,14 +236,18 @@ export const mockItems: IItem[] = applyPersistedState([
   },
 ]);
 
-// Helper function to get items by userId
-export const getItemsByUserId = (userId: number): IItem[] => {
-  return mockItems.filter(item => item.authorId === userId);
+export const getInitialItems = (): IItem[] => {
+  return initialMockItems;
 };
 
-// Helper function to get available items for exchange (not locked, owned by user)
+// Helper function to get items by userId
+export const getItemsByUserId = (userId: number): IItem[] => {
+  return initialMockItems.filter(item => item.authorId === userId);
+};
+
+// Helper function to get available items for exchange (not locked, currently held by user)
 export const getAvailableItemsForUser = (userId: number): IItem[] => {
-  return mockItems.filter(item => item.authorId === userId && !item.isLocked);
+  return initialMockItems.filter(item => item.holderId === userId && !item.isLocked);
 };
 
 export const itemApi = {
@@ -253,30 +257,52 @@ export const itemApi = {
       return getItemsByUserId(userId);
     }
     // For backward compatibility, return all items if no userId provided
-    return mockItems;
+    return initialMockItems;
   },
 
   createItem: async (data: Partial<IItem>): Promise<IItem> => {
     await new Promise(r => setTimeout(r, 500));
     // Добавляем новый товар в начало массива (локально)
-    const newItem = {
-      ...mockItems[0],
-      ...data,
-      id: Date.now(),
-      authorId: data.authorId || 1, // Use provided authorId or default
+    const template = initialMockItems[0] || {
+      title: data.title || 'Новый предмет',
+      description: data.description || '',
+      imageUrl: data.imageUrl || '',
+      images: data.images || [],
+      category: data.category || 'Разное',
+      quantity: data.quantity || 1,
+      unit: data.unit || 'шт',
+      wishes: data.wishes || [],
+      authorId: data.authorId || 1,
       holderId: data.holderId || data.authorId || 1,
       isLocked: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     } as IItem;
 
-    mockItems.unshift(newItem); // Добавляем в мок, чтобы он появился в списке
+    const newItem = {
+      ...template,
+      ...data,
+      id: Date.now(),
+      authorId: data.authorId || template.authorId,
+      holderId: data.holderId || data.authorId || template.holderId,
+      isLocked: false,
+      createdAt: new Date().toISOString(),
+    } as IItem;
+
+    // Add to internal initialMockItems and persist
+    initialMockItems.unshift(newItem);
+    saveItemsState(initialMockItems);
+    // Notify ItemStore (in-memory) to reload its items
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new Event('items_state_changed'));
+      console.debug('itemApi: createItem dispatched items_state_changed');
+    }
     return newItem;
   },
 
   searchItems: async (query: string): Promise<IItem[]> => {
     console.log(`Searching: ${query}`);
     await new Promise(r => setTimeout(r, 300));
-    return mockItems.filter(i =>
+    return initialMockItems.filter(i =>
       i.title.toLowerCase().includes(query.toLowerCase()) ||
       i.category.toLowerCase().includes(query.toLowerCase())
     );
@@ -295,35 +321,43 @@ export const itemApi = {
   updateItem: async (itemId: number, data: Partial<IItem>): Promise<IItem> => {
     await new Promise(r => setTimeout(r, 500));
 
-    const index = mockItems.findIndex(i => i.id === itemId);
-    if (index === -1) {
+    const idx = initialMockItems.findIndex(i => i.id === itemId);
+    if (idx === -1) {
       throw new Error('Item not found');
     }
 
-    // Update the item in mockItems
-    mockItems[index] = {
-      ...mockItems[index],
-      ...data,
-    };
+    initialMockItems[idx] = { ...initialMockItems[idx], ...data } as IItem;
+    saveItemsState(initialMockItems);
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new Event('items_state_changed'));
+      console.debug('itemApi: updateItem dispatched items_state_changed', itemId, data);
+    }
 
-    return mockItems[index];
+    return initialMockItems[idx];
   },
 
   lockItem: async (itemId: number): Promise<void> => {
-    const index = mockItems.findIndex(i => i.id === itemId);
-    if (index !== -1) {
-      mockItems[index].isLocked = true;
-      saveItemsState(mockItems);
+    const idx = initialMockItems.findIndex(i => i.id === itemId);
+    if (idx !== -1) {
+      initialMockItems[idx].isLocked = true;
+      saveItemsState(initialMockItems);
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new Event('items_state_changed'));
+      }
     }
   },
 
   unlockItem: async (itemId: number): Promise<void> => {
-    const index = mockItems.findIndex(i => i.id === itemId);
-    if (index !== -1) {
-      mockItems[index].isLocked = false;
-      saveItemsState(mockItems);
+    const idx = initialMockItems.findIndex(i => i.id === itemId);
+    if (idx !== -1) {
+      initialMockItems[idx].isLocked = false;
+      saveItemsState(initialMockItems);
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new Event('items_state_changed'));
+      }
     }
   },
+
 
   // Создаем новую сделку с цепочкой обмена
   createDeal: async (
@@ -370,19 +404,22 @@ export const itemApi = {
 
     // Блокируем все товары в сделке и сохраняем состояние
     selectedGivingItems.forEach(item => {
-      const idx = mockItems.findIndex(i => i.id === item.id);
+      const idx = initialMockItems.findIndex(i => i.id === item.id);
       if (idx !== -1) {
-        mockItems[idx].isLocked = true;
+        initialMockItems[idx].isLocked = true;
       }
     });
 
-    const targetIdx = mockItems.findIndex(i => i.id === targetItem.id);
+    const targetIdx = initialMockItems.findIndex(i => i.id === targetItem.id);
     if (targetIdx !== -1) {
-      mockItems[targetIdx].isLocked = true;
+      initialMockItems[targetIdx].isLocked = true;
     }
 
-    // Сохраняем состояние после блокировки товаров
-    saveItemsState(mockItems);
+    saveItemsState(initialMockItems);
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new Event('items_state_changed'));
+      console.debug('itemApi: createDeal dispatched items_state_changed (locks applied)');
+    }
 
     const newDeal: IExchangeDeal = {
       id: `deal-${Date.now()}`,
@@ -400,11 +437,15 @@ export const itemApi = {
     console.log(`CHOWN: Item ${itemId} -> User ${toUserId}`);
     await new Promise(r => setTimeout(r, 500));
 
-    const index = mockItems.findIndex(i => i.id === itemId);
-    if (index !== -1) {
-      mockItems[index].holderId = toUserId;
-      mockItems[index].isLocked = true;
-      saveItemsState(mockItems);
+    const idx = initialMockItems.findIndex(i => i.id === itemId);
+    if (idx !== -1) {
+      initialMockItems[idx].holderId = toUserId;
+      initialMockItems[idx].isLocked = true;
+      saveItemsState(initialMockItems);
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new Event('items_state_changed'));
+      }
     }
   },
+
 };

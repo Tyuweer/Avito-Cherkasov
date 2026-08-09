@@ -1,8 +1,10 @@
 // src/pages/profile-page/ProfilePage.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { observer } from 'mobx-react-lite';
 import { useAuthStore } from "../../app/hooks/useAuthStore";
 import { ItemCard } from "../../entities/item/ui/ItemCard";
-import { itemApi, mockItems } from "../../entities/item/api/itemApi";
+import { itemApi } from "../../entities/item/api/itemApi";
+import { itemStore } from "../../app/providers/ItemStore";
 import type { IItem } from "../../shared/api/types";
 import { useNavigate } from "react-router-dom";
 import { CreateItemForm } from "../../features/create-item/ui/CreateItemForm";
@@ -14,11 +16,13 @@ import { dealStore } from "../../app/providers/DealStore";
 
 type Tab = "items" | "wishes" | "deals" | "settings";
 
-export const ProfilePage = () => {
+export const ProfilePage = observer(() => {
   const authStore = useAuthStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("items");
-  const [myItems, setMyItems] = useState<IItem[]>([]);
+  // derive items directly from itemStore so UI reacts automatically
+  // Show items where current user is author OR holder (so holder sees exclusive rights in own profile)
+  const myItems = itemStore.all.filter(i => i.authorId === authStore.user?.id || i.holderId === authStore.user?.id);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<{ open: boolean; item?: IItem }>({ open: false });
   const [isWishModalOpen, setIsWishModalOpen] = useState(false);
@@ -43,11 +47,6 @@ export const ProfilePage = () => {
 
   useEffect(() => {
     if (currentUser) {
-      itemApi.getMyItems().then((items) => {
-        // Показываем ТОЛЬКО собственные товары пользователя (authorId === currentUser.id)
-        // Товары с isLocked помечаются как "в сделке" - их нельзя редактировать/удалять
-        setMyItems(items.filter((i) => i.authorId === currentUser.id));
-      });
       setNewUsername(currentUser.username);
       setAvatarUrl(currentUser.avatarUrl || "");
       // Load wishes from API
@@ -57,40 +56,40 @@ export const ProfilePage = () => {
 
   const handleItemCreated = () => {
     setIsCreateModalOpen(false);
+    // itemStore is observable — the UI will update automatically
     if (currentUser) {
-      itemApi
-        .getMyItems()
-        .then((items) => setMyItems(items.filter((i) => i.authorId === currentUser.id)));
-      // Reload wishes in case new ones were added
       authApi.getUserWishes(currentUser.id).then(setMyWishes);
     }
   };
 
   const handleItemUpdated = () => {
     setIsEditModalOpen({ open: false });
-    if (currentUser) {
-      itemApi
-        .getMyItems()
-        .then((items) => setMyItems(items.filter((i) => i.authorId === currentUser.id)));
-    }
+    // itemStore already updated by API/store — UI will react
   };
 
   const handleEditItem = (item: IItem) => {
-    // Check if item belongs to user (authorId === currentUser.id) and is not locked
-    if (item.authorId !== currentUser?.id) {
+    // Allow editing if current user is author OR current holder (exclusive rights). If holder but not author, restrict destructive actions elsewhere.
+    const isAuthor = item.authorId === currentUser?.id;
+    const isHolder = item.holderId === currentUser?.id;
+
+    if (!isAuthor && !isHolder) {
       alert("Нельзя редактировать чужой товар.");
       return;
     }
-    if (item.isLocked) {
+
+    if (item.isLocked && isAuthor) {
+      // author cannot edit while item is locked in active deal
       alert("Нельзя редактировать товар, который участвует в активной сделке. Дождитесь завершения или отмены сделки.");
       return;
     }
+
+    // If holder (but not author), allow editing of wishes only — EditItemForm should handle partial updates
     setIsEditModalOpen({ open: true, item });
   };
 
   const handleDeleteItem = (itemId: number) => {
     // Check if item exists and belongs to user
-    const item = mockItems.find(i => i.id === itemId);
+    const item = itemStore.getById(itemId);
     if (!item) return;
 
     // Cannot delete items that don't belong to user
@@ -105,13 +104,8 @@ export const ProfilePage = () => {
       return;
     }
 
-    // Remove from mockItems
-    const index = mockItems.findIndex(i => i.id === itemId);
-    if (index !== -1) {
-      mockItems.splice(index, 1);
-      // Update state
-      setMyItems(myItems.filter(i => i.id !== itemId));
-    }
+    // Remove from ItemStore — UI updates via observer
+    itemStore.deleteItem(itemId);
     setIsDeleteModalOpen({ open: false });
   };
 
@@ -256,7 +250,9 @@ export const ProfilePage = () => {
                 {myItems.map((item) => {
                   // Товар в сделке - заблокирован и не может быть отредактирован/удален
                   const inDeal = item.isLocked;
-                  const canEdit = !item.isLocked;
+                  const isAuthor = item.authorId === authStore.user?.id;
+                  const isHolder = item.holderId === authStore.user?.id;
+                  const canEdit = (isAuthor && !item.isLocked) || isHolder;
                   return (
                     <div key={item.id} className="relative group flex flex-col">
                       {/* Бейдж "Товар в сделке" */}
@@ -272,7 +268,7 @@ export const ProfilePage = () => {
                           `}
                       >
                         <div className="relative">
-                          <ItemCard item={item} />
+                          <ItemCard item={item} currentUserId={currentUser?.id} />
                           {canEdit && (
                             <button
                               onClick={(e) => {
@@ -285,7 +281,7 @@ export const ProfilePage = () => {
                               ✎
                             </button>
                           )}
-                          {!item.isLocked && (
+                          {(isAuthor && !item.isLocked) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -647,4 +643,4 @@ export const ProfilePage = () => {
       />
     </div>
   );
-};
+})

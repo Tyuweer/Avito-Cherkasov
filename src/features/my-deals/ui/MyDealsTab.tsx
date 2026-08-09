@@ -1,5 +1,6 @@
 // src/features/my-deals/ui/MyDealsTab.tsx
 import { useState, useMemo } from "react";
+import { observer } from 'mobx-react-lite';
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../../../app/providers/StoreProvider";
 import { dealStore } from "../../../app/providers/DealStore";
@@ -10,15 +11,14 @@ interface MyDealsTabProps {
   currentUserId: number;
 }
 
-export const MyDealsTab = ({ currentUserId }: MyDealsTabProps) => {
+export const MyDealsTab = observer(({ currentUserId }: MyDealsTabProps) => {
   const navigate = useNavigate();
   const store = useStore();
   const [filter, setFilter] = useState<"active" | "pending" | "completed" | "cancelled" | "all">("all");
 
   // Get deals from dealStore
-  const myDeals = useMemo(() => {
-    return dealStore.getDealsForUser(currentUserId);
-  }, [dealStore.deals, currentUserId]);
+  // derive deals directly from dealStore so MobX reactivity triggers updates
+  const myDeals = dealStore.getDealsForUser(currentUserId);
 
   // Apply status filter
   const filteredDeals = useMemo(() => {
@@ -135,4 +135,4 @@ export const MyDealsTab = ({ currentUserId }: MyDealsTabProps) => {
       )}
     </div>
   );
-};
+})

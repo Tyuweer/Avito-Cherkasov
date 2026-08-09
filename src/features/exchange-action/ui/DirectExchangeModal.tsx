@@ -1,10 +1,9 @@
 // src/features/exchange-action/ui/DirectExchangeModal.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { IItem, IExchangeDeal } from '../../../shared/api/types';
-import { getAvailableItemsForUser } from '../../../entities/item/api/itemApi';
 import { useAuthStore } from '../../../app/hooks/useAuthStore';
-import { useStore } from '../../../app/providers/StoreProvider';
 import { dealStore } from '../../../app/providers/DealStore';
+import { itemStore } from '../../../app/providers/ItemStore';
 
 interface DirectExchangeModalProps {
   targetItem: IItem; // The item we want to receive
@@ -14,28 +13,17 @@ interface DirectExchangeModalProps {
 
 export const DirectExchangeModal = ({ targetItem, onClose, onConfirm }: DirectExchangeModalProps) => {
   const authStore = useAuthStore();
-  const store = useStore();
   const currentUserId = authStore.user?.id ?? 1;
 
-  const [myItems, setMyItems] = useState<IItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadMyItems = () => {
-    const items = getAvailableItemsForUser(currentUserId);
-    // Filter: available items that are not the target item itself
-    const available = items.filter(i =>
-      i.id !== targetItem.id &&
-      !i.isLocked
-    );
-    setMyItems(available);
-  };
-
-  useEffect(() => {
-    if (currentUserId !== undefined) {
-      loadMyItems();
-    }
-  }, [targetItem.id, currentUserId]);
+  const myItems = itemStore.all.filter(i =>
+    i.holderId === currentUserId &&
+    i.id !== targetItem.id &&
+    !i.isLocked &&
+    !dealStore.isItemReserved(i.id)
+  );
 
   const toggleSelection = (id: number) => {
     setSelectedIds(prev =>

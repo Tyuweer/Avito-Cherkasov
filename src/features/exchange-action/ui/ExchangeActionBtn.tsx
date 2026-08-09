@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import type { IItem } from '../../../shared/api/types';
 import { useAuthStore } from '../../../app/hooks/useAuthStore';
-import { getAvailableItemsForUser } from '../../../entities/item/api/itemApi';
+import { itemStore } from '../../../app/providers/ItemStore';
 import { DirectExchangeModal } from './DirectExchangeModal';
 import { JoinChainModal } from '../../join-chain/ui/JoinChainModal';
 
@@ -20,7 +20,7 @@ export const ExchangeActionBtn: React.FC<ExchangeActionBtnProps> = ({ item, onDe
   const isAuthenticated = authStore.isAuthenticated;
 
   // Get user's available items for exchange
-  const myAvailableItems = currentUser ? getAvailableItemsForUser(currentUser.id) : [];
+  const myAvailableItems = currentUser ? itemStore.all.filter(item => item.holderId === currentUser.id && !item.isLocked) : [];
   const hasItemsToExchange = myAvailableItems.length > 0;
 
   // Check if I have what the owner wants (for direct exchange)

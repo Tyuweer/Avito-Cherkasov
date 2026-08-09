@@ -1,9 +1,9 @@
 // src/features/join-chain/ui/JoinChainModal.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { IItem, IExchangeDeal } from '../../../shared/api/types';
-import { itemApi } from '../../../entities/item/api/itemApi';
 import { useAuthStore } from '../../../app/hooks/useAuthStore';
 import { dealStore } from '../../../app/providers/DealStore';
+import { itemStore } from '../../../app/providers/ItemStore';
 
 interface JoinChainModalProps {
   targetItem: IItem; // Товар, который мы хотим получить
@@ -15,30 +15,15 @@ export const JoinChainModal = ({ targetItem, onClose, onConfirm }: JoinChainModa
   const authStore = useAuthStore();
   const currentUserId = authStore.user?.id ?? 1;
 
-  const [myItems, setMyItems] = useState<IItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadMyItems = () => {
-    itemApi.getMyItems().then(items => {
-      // Фильтр:
-      // 1. authorId === currentUserId (только мои собственные вещи, которые я могу отдать)
-      // 2. id !== targetItem.id (нельзя обменять вещь на саму себя)
-      // 3. !isLocked (нельзя отдать заблокированное)
-      const available = items.filter(i =>
-        i.authorId === currentUserId &&
-        i.id !== targetItem.id &&
-        !i.isLocked
-      );
-      setMyItems(available);
-    });
-  };
-
-  useEffect(() => {
-    if (currentUserId !== undefined) {
-      loadMyItems();
-    }
-  }, [targetItem.id, currentUserId]);
+  const myItems = itemStore.all.filter(i =>
+    i.holderId === currentUserId &&
+    i.id !== targetItem.id &&
+    !i.isLocked &&
+    !dealStore.isItemReserved(i.id)
+  );
 
   const toggleSelection = (id: number) => {
     setSelectedIds(prev =>

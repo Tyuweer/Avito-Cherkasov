@@ -1,42 +1,36 @@
 // src/pages/item-page/ItemPage.tsx
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { mockItems } from '../../entities/item/api/itemApi';
+import { useState } from 'react';
+import { itemStore } from '../../app/providers/ItemStore';
+import { observer } from 'mobx-react-lite';
 import { mockUsers } from '../../entities/user/api/userApi';
-import type { IItem } from '../../shared/api/types';
 import { UserBadge } from '../../entities/user/ui/UserBadge';
 import { useAuthStore } from '../../app/hooks/useAuthStore';
 import { SuccessSticker } from '../../shared/ui/SuccessSticker';
 import { ExchangeActionBtn } from '../../features/exchange-action/ui/ExchangeActionBtn';
 
-export const ItemPage = () => {
+export const ItemPage = observer(() => {
   const { id } = useParams();
   const navigate = useNavigate();
   const authStore = useAuthStore();
-  const [item, setItem] = useState<IItem | null>(null);
   const [mainImage, setMainImage] = useState('');
   const [showSticker, setShowSticker] = useState(false);
   const [stickerMessage, setStickerMessage] = useState('');
 
   const currentUser = authStore.user;
 
-  useEffect(() => {
-    const found = mockItems.find(i => i.id === Number(id));
-    if (found) {
-      setItem(found);
-      setMainImage(found.images?.[0] || found.imageUrl);
-    }
-  }, [id]);
+  const item = itemStore.getById(Number(id));
+  if (item && !mainImage) {
+    setMainImage(item.images?.[0] || item.imageUrl);
+  }
 
   if (!item) return <div className="p-10 text-center">Товар не найден</div>;
 
   // Display holder (распорядитель) instead of author (владелец)
   const holder = mockUsers[item.holderId];
   const author = mockUsers[item.authorId];
-
-  // Check if current user is the holder (has exclusive rights) or author
   const isMyItem = currentUser && (item.holderId === currentUser.id || item.authorId === currentUser.id);
-
+ 
   const handleDealCreated = (dealId: string) => {
     setStickerMessage(`Сделка #${dealId} создана!`);
     setShowSticker(true);
@@ -121,34 +115,44 @@ export const ItemPage = () => {
                 </div>
             )}
 
-            <div className="mt-auto pt-8 border-t border-gray-100 flex items-center justify-between gap-4">
-                <div className="flex flex-col">
-                    <span className="text-xs text-gray-400 uppercase font-bold mb-2 tracking-wider">
-                      {item.holderId !== item.authorId ? 'Распорядитель' : 'Владелец товара'}
-                    </span>
-                    {holder ? (
-                        <Link to={`/user/${holder.id}`} className="flex items-center gap-3 bg-gray-50 p-2 pr-4 rounded-xl border border-gray-100 hover:border-[#00AAFF] transition-colors">
-                            <UserBadge user={holder} />
-                        </Link>
-                    ) : (
-                        <span className="text-gray-400 text-sm">Неизвестен</span>
+            <div className="mt-auto pt-8 border-t border-gray-100 flex flex-col gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="flex flex-col">
+                        <span className="text-xs text-gray-400 uppercase font-bold mb-2 tracking-wider">
+                          {item.holderId !== item.authorId ? 'Распорядитель' : 'Владелец товара'}
+                        </span>
+                        {holder ? (
+                            <Link to={`/user/${holder.id}`} className="flex items-center gap-3 bg-gray-50 p-2 pr-4 rounded-xl border border-gray-100 hover:border-[#00AAFF] transition-colors">
+                                <UserBadge user={holder} />
+                            </Link>
+                        ) : (
+                            <span className="text-gray-400 text-sm">Неизвестен</span>
+                        )}
+                    </div>
+                    {item.holderId !== item.authorId && (
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-400 uppercase font-bold mb-2 tracking-wider">
+                          Владелец товара
+                        </span>
+                        {author ? (
+                          <Link to={`/user/${author.id}`} className="flex items-center gap-3 bg-gray-50 p-2 pr-4 rounded-xl border border-gray-100 hover:border-[#00AAFF] transition-colors">
+                            <UserBadge user={author} />
+                          </Link>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Неизвестен</span>
+                        )}
+                      </div>
                     )}
                 </div>
 
                 {/* Single smart action button */}
-                {!isMyItem && !item.isLocked && (
+                {!item.isLocked && currentUser && (
                     <div className="flex flex-col gap-2 min-w-[200px]">
                         <ExchangeActionBtn
                           item={item}
                           onDealCreated={() => handleDealCreated('pending')}
                         />
                     </div>
-                )}
-
-                {isMyItem && (
-                  <div className="px-8 py-4 rounded-xl font-bold text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed text-center min-w-[200px]">
-                    Это ваш товар
-                  </div>
                 )}
 
                 {item.isLocked && (
@@ -170,4 +174,4 @@ export const ItemPage = () => {
       />
     </div>
   );
-};
+})

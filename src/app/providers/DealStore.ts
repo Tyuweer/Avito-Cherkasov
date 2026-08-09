@@ -1,8 +1,8 @@
 // src/app/providers/DealStore.ts
 import { makeAutoObservable, runInAction, reaction } from 'mobx';
-import type { IExchangeDeal, IItem, DealStatus } from '../../shared/api/types';
+import type { IExchangeDeal, IItem } from '../../shared/api/types';
 import { DealStatus as DealStatusEnum, ChainLinkStatus, LogisticsStatus } from '../../shared/api/types';
-import { mockItems } from '../../entities/item/api/itemApi';
+import { itemStore } from './ItemStore';
 import { mockUsers } from '../../entities/user/api/userApi';
 
 const STORAGE_KEY = 'exchange_app_deals';
@@ -52,24 +52,60 @@ export class DealStore {
 
   // Sync item lock states based on deal statuses
   syncItemLockStates(): void {
-    // First, unlock all items
-    mockItems.forEach(item => {
-      item.isLocked = false;
-    });
+    // First, unlock all items via ItemStore
+    itemStore.unlockItems(itemStore.all.map(i => i.id));
 
-    // Then lock items in ACTIVE or CONFIRMING deals
+    // Then lock items only for active/confirmed deals
     this.deals.forEach(deal => {
-      if (deal.status === DealStatusEnum.ACTIVE ||
-          deal.status === DealStatusEnum.CONFIRMING ||
-          deal.status === DealStatusEnum.CONFIRMED) {
+      if (
+        deal.status === DealStatusEnum.ACTIVE ||
+        deal.status === DealStatusEnum.CONFIRMED
+      ) {
+        const idsToLock: number[] = [];
         deal.chain.forEach(link => {
-          const item = mockItems.find(i => i.id === link.givingItem.id);
-          if (item) {
-            item.isLocked = true;
-          }
+          idsToLock.push(link.givingItem.id);
         });
+        if (idsToLock.length > 0) {
+          itemStore.lockItems(idsToLock);
+        }
       }
     });
+  }
+
+  private findPendingDealForItemIds(itemIds: number[]): { deal: IExchangeDeal; matchId: number } | undefined {
+    for (const deal of this.deals) {
+      if (deal.status !== DealStatusEnum.PENDING) continue;
+      for (const itemId of itemIds) {
+        const match = deal.chain.find(link => link.givingItemId === itemId || link.receivingItemId === itemId);
+        if (match) {
+          return { deal, matchId: itemId };
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private appendChainLink(deal: IExchangeDeal, newLink: IExchangeDeal['chain'][number], afterItemId: number) {
+    const receiveIndex = deal.chain.findIndex(link => link.receivingItemId === afterItemId);
+    const giveIndex = deal.chain.findIndex(link => link.givingItemId === afterItemId);
+    const insertIndex = receiveIndex !== -1 ? receiveIndex : giveIndex;
+
+    if (insertIndex === -1) {
+      deal.chain.push(newLink);
+      return;
+    }
+
+    const nextIndex = insertIndex + 1;
+    const nextLink = deal.chain[nextIndex] || deal.chain[0];
+    deal.chain.splice(nextIndex, 0, newLink);
+
+    if (nextLink) {
+      nextLink.receivingItemId = newLink.givingItemId;
+      nextLink.receivingItem = newLink.givingItem;
+      if (nextLink.status === ChainLinkStatus.ACCEPTED) {
+        nextLink.status = ChainLinkStatus.PENDING;
+      }
+    }
   }
 
   // Create a new deal
@@ -83,13 +119,11 @@ export class DealStore {
 
     await new Promise(r => setTimeout(r, 500));
 
-    const chain: IExchangeDeal['chain'] = [];
     const givingItem = selectedGivingItems[0];
     const targetOwner = mockUsers[targetItem.holderId] || mockUsers[1];
+    const givingIds = selectedGivingItems.map(i => i.id);
 
-    // First link: initiator - блокируем его товар, holderId остается у initiatorId (автор)
-    // но помечаем isLocked = true
-    chain.push({
+    const newChainLink = {
       userId: initiatorId,
       user: mockUsers[initiatorId] || mockUsers[1],
       status: ChainLinkStatus.ACCEPTED,
@@ -98,42 +132,81 @@ export class DealStore {
       receivingItemId: targetItem.id,
       receivingItem: targetItem,
       logisticsStatus: LogisticsStatus.NONE,
-    });
+    };
 
-    // Second link: target owner (needs to confirm)
-    chain.push({
-      userId: targetItem.holderId,
-      user: targetOwner,
-      status: ChainLinkStatus.PENDING,
-      givingItemId: targetItem.id,
-      givingItem: targetItem,
-      receivingItemId: givingItem.id,
-      receivingItem: givingItem,
-      logisticsStatus: LogisticsStatus.NONE,
-    });
+    let newDeal: IExchangeDeal;
 
-    // Lock all items in the deal - товары инициатора блокируются
-    // holderId остается authorId - право распоряжения не передается, только блокировка
-    selectedGivingItems.forEach(item => {
-      const idx = mockItems.findIndex(i => i.id === item.id);
-      if (idx !== -1) {
-        mockItems[idx].isLocked = true;
-      }
-    });
+    const existingDealMatch = this.findPendingDealForItemIds([targetItem.id, ...givingIds]);
 
-    // Target item also gets locked
-    const targetIdx = mockItems.findIndex(i => i.id === targetItem.id);
-    if (targetIdx !== -1) {
-      mockItems[targetIdx].isLocked = true;
+    if (existingDealMatch) {
+      runInAction(() => {
+        this.appendChainLink(existingDealMatch.deal, newChainLink, existingDealMatch.matchId);
+        this.syncItemLockStates();
+        this.saveToStorage();
+        this.isLoading = false;
+      });
+      console.debug('DealStore: appendChainLink -> deal', existingDealMatch.deal.id, 'newLink:', newChainLink, 'matchId:', existingDealMatch.matchId);
+
+      // When appending to an existing pending chain, transfer rights for the giving item to the target holder.
+      itemStore.transferRights(givingItem.id, targetItem.holderId, false);
+      return existingDealMatch.deal;
     }
 
-    const newDeal: IExchangeDeal = {
-      id: `deal-${Date.now()}`,
-      status: DealStatusEnum.PENDING,
-      deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      initiatorId,
-      chain,
-    };
+    if (dealType === 'CHAIN') {
+      const chain: IExchangeDeal['chain'] = [
+        {
+          ...newChainLink,
+        },
+        {
+          userId: targetItem.holderId,
+          user: targetOwner,
+          status: ChainLinkStatus.PENDING,
+          givingItemId: targetItem.id,
+          givingItem: targetItem,
+          receivingItemId: givingItem.id,
+          receivingItem: givingItem,
+          logisticsStatus: LogisticsStatus.NONE,
+        },
+      ];
+
+      // Transfer rights for each giving item to the owner of targetItem, but do not lock until deal becomes active
+      givingIds.forEach(id => itemStore.transferRights(id, targetItem.holderId, false));
+
+      newDeal = {
+        id: `deal-${Date.now()}`,
+        status: DealStatusEnum.PENDING,
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        initiatorId,
+        chain,
+      };
+    } else {
+      const chain: IExchangeDeal['chain'] = [
+        {
+          ...newChainLink,
+        },
+        {
+          userId: targetItem.holderId,
+          user: targetOwner,
+          status: ChainLinkStatus.PENDING,
+          givingItemId: targetItem.id,
+          givingItem: targetItem,
+          receivingItemId: givingItem.id,
+          receivingItem: givingItem,
+          logisticsStatus: LogisticsStatus.NONE,
+        },
+      ];
+
+      // Do not lock items until direct deal becomes active
+      newDeal = {
+        id: `deal-${Date.now()}`,
+        status: DealStatusEnum.PENDING,
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        initiatorId,
+        chain,
+      };
+    }
+
+    console.debug('DealStore: createDeal ->', newDeal.id, 'initiator:', initiatorId, 'givingIds:', givingIds, 'targetItem:', targetItem.id, 'type:', dealType);
 
     runInAction(() => {
       this.deals.push(newDeal);
@@ -155,6 +228,8 @@ export class DealStore {
       deal.chain.forEach(link => {
         link.status = ChainLinkStatus.ACCEPTED;
       });
+      const itemIdsToLock = deal.chain.map(link => link.givingItem.id);
+      itemStore.lockItems(itemIdsToLock);
       this.syncItemLockStates();
       this.saveToStorage();
     });
@@ -169,18 +244,19 @@ export class DealStore {
       deal.status = DealStatusEnum.CANCELLED;
       deal.declineReason = reason;
 
-      // Unlock all items in the deal
+      // Unlock all items in the deal and revert rights back to authors
       deal.chain.forEach(link => {
-        const item = mockItems.find(i => i.id === link.givingItem.id);
-        if (item) {
-          item.isLocked = false;
-        }
-        // Reset holderId to authorId for chain deals
+        const givingId = link.givingItem.id;
+        // Revert holderId back to author and unlock
+        itemStore.revertRights(givingId);
         link.status = ChainLinkStatus.DECLINED;
       });
 
       this.syncItemLockStates();
       this.saveToStorage();
+      // ItemStore already persisted items state
+      console.debug('DealStore: cancelDeal ->', dealId, 'reason:', reason, 'deal:', deal);
+
     });
   };
 
@@ -199,6 +275,15 @@ export class DealStore {
     );
   }
 
+  // Check whether item is reserved by any active/confirmed deal.
+  // Pending deals do not block items and they can still be used in other chain proposals.
+  isItemReserved(itemId: number): boolean {
+    return this.deals.some(deal =>
+      (deal.status === DealStatusEnum.ACTIVE || deal.status === DealStatusEnum.CONFIRMED) &&
+      deal.chain.some(link => link.givingItemId === itemId || link.receivingItemId === itemId)
+    );
+  }
+
   // Get deal by ID
   getDealById(dealId: string): IExchangeDeal | undefined {
     return this.deals.find(d => d.id === dealId);
@@ -210,17 +295,15 @@ export class DealStore {
       // Clear localStorage for deals
       localStorage.removeItem(STORAGE_KEY);
 
-      // Unlock all items and reset holderId to authorId
-      mockItems.forEach(item => {
-        item.isLocked = false;
-        item.holderId = item.authorId;
-      });
+      // Reset all items via ItemStore (revert holderId -> authorId and unlock)
+      itemStore.resetAll();
 
       // Clear all deals
       this.deals = [];
 
-      // Also clear items state from localStorage
+      // ItemStore already persisted the items state; ensure deals storage is cleared
       localStorage.removeItem('items_state');
+
     });
   };
 }

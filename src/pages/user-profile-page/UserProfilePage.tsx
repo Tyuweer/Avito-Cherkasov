@@ -1,17 +1,16 @@
 // src/pages/user-profile-page/UserProfilePage.tsx
 import React, { useEffect, useState } from "react";
+import { observer } from 'mobx-react-lite';
 import { useParams, useNavigate, Link } from "react-router-dom";
-import type { IUser, IItem } from "../../shared/api/types";
+import type { IUser } from "../../shared/api/types";
 import { authApi } from "../../shared/api/authApi";
-import { mockItems } from "../../entities/item/api/itemApi";
-import { dealStore } from "../../app/providers/DealStore";
-import { DealStatus } from "../../shared/api/types";
+import { itemStore } from "../../app/providers/ItemStore";
+import { mockUsers } from "../../entities/user/api/userApi";
 
-export const UserProfilePage: React.FC = () => {
+export const UserProfilePage: React.FC = observer(() => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [user, setUser] = useState<IUser | null>(null);
-  const [items, setItems] = useState<IItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,37 +22,6 @@ export const UserProfilePage: React.FC = () => {
           const userData = await authApi.getUserById(userId);
           if (userData) {
             setUser(userData);
-
-            // Получаем активные сделки для этого пользователя
-            const userDeals = dealStore
-              .getDealsForUser(userId)
-              .filter(
-                (d) =>
-                  d.status === DealStatus.ACTIVE ||
-                  d.status === DealStatus.CONFIRMING ||
-                  d.status === DealStatus.CONFIRMED ||
-                  d.status === DealStatus.PENDING,
-              );
-
-            // Находим ID товаров, которые пользователь получит в сделке (исключительное право)
-            const exclusiveRightItemIds = new Set<number>();
-            userDeals.forEach((deal) => {
-              deal.chain.forEach((link) => {
-                // Если этот пользователь должен получить товар (receivingItem)
-                if (link.userId === userId && link.receivingItemId) {
-                  exclusiveRightItemIds.add(link.receivingItemId);
-                }
-              });
-            });
-
-            // Показываем:
-            // 1. Собственные товары пользователя (authorId === userId)
-            // 2. Товары с исключительным правом (те, которые пользователь получит в сделке)
-            const userItems = mockItems.filter(
-              (item) =>
-                item.authorId === userId || exclusiveRightItemIds.has(item.id),
-            );
-            setItems(userItems);
           } else {
             setUser(null);
           }
@@ -68,6 +36,12 @@ export const UserProfilePage: React.FC = () => {
 
     loadUserData();
   }, [id]);
+
+  // derive visible items directly so updates in itemStore reflect immediately
+  const items = user ? itemStore.all.filter(
+    (item) => item.authorId === user.id || (item.holderId === user.id && item.authorId !== user.id),
+  ) : [];
+
 
   if (loading) {
     return (
@@ -159,14 +133,13 @@ export const UserProfilePage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {items.map((item) => {
-              // Товар в сделке (исключительное право у текущего пользователя)
+              {items.map((item) => {
+              const ownerUser = mockUsers[item.authorId] || { id: 0, username: 'Unknown', rating: 0, declineCount: 0 };
               const hasExclusiveRight =
-                item.authorId !== user?.id && item.isLocked;
+                item.holderId === user?.id && item.authorId !== user?.id;
               const isOwner = item.authorId === user?.id;
-
-              return (
-                <div
+ 
+              return (                <div
                   key={item.id}
                   className={`bg-white rounded-xl border overflow-hidden hover:shadow-md transition-shadow group ${hasExclusiveRight ? "border-purple-200 ring-1 ring-purple-100" : "border-slate-200"}`}
                 >
@@ -176,16 +149,9 @@ export const UserProfilePage: React.FC = () => {
                       alt={item.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    {/* Бейдж "В сделке" для всех заблокированных товаров */}
-                    {item.isLocked && isOwner && (
-                      <div className="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded font-bold shadow-sm">
-                        В сделке
-                      </div>
-                    )}
-                    {/* Бейдж "Исключительное право" - если товар чужой, но у нас право распоряжения */}
-                    {hasExclusiveRight && (
-                      <div className="absolute top-2 left-2 bg-purple-600 text-white text-xs px-2 py-1 rounded font-bold shadow-sm flex items-center gap-1">
-                        <span>⚡</span> Исключительное право
+                    {(item.isLocked || hasExclusiveRight) && (
+                      <div className={`absolute top-2 left-2 text-white text-xs px-2 py-1 rounded font-bold shadow-sm flex items-center gap-1 ${item.isLocked ? 'bg-orange-500' : 'bg-purple-600'}`}>
+                        {item.isLocked ? '🔒 В сделке' : '⚡ Исключительное право'}
                       </div>
                     )}
                   </div>
@@ -228,12 +194,17 @@ export const UserProfilePage: React.FC = () => {
 
                     <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100">
                       <span>{item.category}</span>
-                      {!isOwner && (
+                      {hasExclusiveRight ? (
+                        <span className="text-purple-600 font-medium">
+                          Владелец: {ownerUser.username}
+                        </span>
+                      ) : isOwner ? (
+                        <span>ID: {item.id}</span>
+                      ) : (
                         <span className="text-purple-600 font-medium">
                           Владелец: другой пользователь
                         </span>
                       )}
-                      {isOwner && <span>ID: {item.id}</span>}
                     </div>
 
                     <Link
@@ -251,4 +222,4 @@ export const UserProfilePage: React.FC = () => {
       </div>
     </div>
   );
-};
+})
