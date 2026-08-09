@@ -2,6 +2,12 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import type { IItem } from '../../shared/api/types';
 import { getInitialItems } from '../../entities/item/api/itemApi';
+// Backend integration notes:
+// import { itemApi } from '../../entities/item/api/itemApi';
+// When backend is ready, remove localStorage-only persistence from this store and fetch items from API:
+//   const items = await itemApi.getMyItems(currentUserId);
+//   runInAction(() => { this.items = items; });
+// Then convert lock / transfer / revert methods to async API calls.
 
 const STORAGE_KEY_ITEMS = 'items_state';
 
@@ -36,6 +42,13 @@ export class ItemStore {
 
   // Lock multiple items by ids
   lockItems(itemIds: number[]): void {
+    // Backend integration example:
+    // async lockItems(itemIds: number[]): Promise<void> {
+    //   await Promise.all(itemIds.map(id => itemApi.updateItem(id, { isLocked: true })));
+    //   runInAction(() => {
+    //     ...
+    //   });
+    // }
     runInAction(() => {
       itemIds.forEach(id => {
         const idx = this.items.findIndex(i => i.id === id);
@@ -64,6 +77,13 @@ export class ItemStore {
 
   // Transfer exclusive right (chown)
   transferRights(itemId: number, newHolderId: number, lockItem: boolean = false): void {
+    // Backend integration example:
+    // async transferRights(itemId: number, newHolderId: number, lockItem: boolean = false): Promise<void> {
+    //   await itemApi.updateItem(itemId, { holderId: newHolderId, isLocked: lockItem });
+    //   runInAction(() => {
+    //     ...
+    //   });
+    // }
     runInAction(() => {
       const idx = this.items.findIndex(i => i.id === itemId);
       if (idx !== -1) {
@@ -80,6 +100,13 @@ export class ItemStore {
 
   // Revert rights: holderId -> authorId
   revertRights(itemId: number): void {
+    // Backend integration example:
+    // async revertRights(itemId: number): Promise<void> {
+    //   const item = this.getById(itemId);
+    //   if (!item) return;
+    //   await itemApi.updateItem(itemId, { holderId: item.authorId, isLocked: false });
+    //   runInAction(() => { ... });
+    // }
     runInAction(() => {
       const idx = this.items.findIndex(i => i.id === itemId);
       if (idx !== -1) {
@@ -114,6 +141,9 @@ export class ItemStore {
   }
 
   saveToStorage(): void {
+    // LocalStorage persistence is a temporary client-side cache.
+    // When the backend is ready, this method can remain as a UI cache,
+    // or be removed once item updates are fully server-owned.
     try {
       const stateToSave = this.items.map(item => ({
         id: item.id,

@@ -449,3 +449,53 @@ export const itemApi = {
   },
 
 };
+
+// src/entities/item/api/itemApi.ts
+
+// TODO: оставить текущий mock как fallback DEV
+// export const getInitialItems = () => { ... }
+
+// добавить API helper
+/*
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
+const apiFetch = async <T>(path: string, options: RequestInit = {}) => {
+  const token = localStorage.getItem('access_token');
+  const res = await fetch(`${API_BASE}/api/v1${path}`, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+    ...options,
+  });
+  if (!res.ok) {
+    throw new Error(`API ${path} failed: ${await res.text()}`);
+  }
+  return res.json() as Promise<T>;
+};
+
+export const getItems = () => apiFetch<IItem[]>('/items');
+export const getItem = (itemId: number) => apiFetch<IItem>(`/items/${itemId}`);
+export const getMyItems = (userId: number) => apiFetch<IItem[]>(`/users/${userId}/items`);
+export const updateItem = (itemId: number, body: Partial<Pick<IItem,'holderId'|'isLocked'>>) =>
+  apiFetch<IItem>(`/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(body) });
+export const createItem = (item: Partial<IItem>) =>
+  apiFetch<IItem>('/items', { method: 'POST', body: JSON.stringify(item) });
+
+export const dealApi = {
+  getDeals: () => apiFetch<IExchangeDeal[]>('/deals'),
+  getDeal: (dealId: string) => apiFetch<IExchangeDeal>(`/deals/${dealId}`),
+  createDeal: (payload: {
+    initiatorId: number;
+    targetItemId: number;
+    selectedGivingItemIds: number[];
+    dealType: 'DIRECT' | 'CHAIN';
+  }) => apiFetch<IExchangeDeal>('/deals', { method: 'POST', body: JSON.stringify(payload) }),
+  confirmDeal: (dealId: string) => apiFetch<void>(`/deals/${dealId}/confirm`, { method: 'POST' }),
+  cancelDeal: (dealId: string, reason?: string) => apiFetch<void>(`/deals/${dealId}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  transferExclusiveRight: (itemId: number, toUserId: number, lockItem: boolean = false) =>
+    apiFetch<IItem>(`/items/${itemId}/rights`, { method: 'PATCH', body: JSON.stringify({ holderId: toUserId, isLocked: lockItem }) }),
+};
+*/

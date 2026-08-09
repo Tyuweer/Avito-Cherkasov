@@ -1,5 +1,7 @@
 // src/shared/api/authApi.ts
 import type { IUser, ApiResponse } from './types';
+// Backend integration notes:
+// import { apiClient } from './client';
 
 interface LoginRequest {
   username: string;

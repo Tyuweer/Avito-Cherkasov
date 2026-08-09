@@ -4,6 +4,10 @@ import type { IExchangeDeal, IItem } from '../../shared/api/types';
 import { DealStatus as DealStatusEnum, ChainLinkStatus, LogisticsStatus } from '../../shared/api/types';
 import { itemStore } from './ItemStore';
 import { mockUsers } from '../../entities/user/api/userApi';
+// Backend integration notes:
+// import { apiClient } from '../../shared/api/client';
+// import { itemApi } from '../../entities/item/api/itemApi';
+// When backend is ready, load deals from /v1/deals and keep local storage only as a fallback cache.
 
 const STORAGE_KEY = 'exchange_app_deals';
 
@@ -24,6 +28,7 @@ export class DealStore {
   }
 
   // Load deals from localStorage
+  // Backend integration note: replace this with an API call to /v1/deals when server persistence is available.
   loadFromStorage(): void {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -51,6 +56,8 @@ export class DealStore {
   }
 
   // Sync item lock states based on deal statuses
+  // Backend integration note: if the server tracks locks, this logic can be replaced
+  // with direct item status updates from the backend and local cache refresh.
   syncItemLockStates(): void {
     // First, unlock all items via ItemStore
     itemStore.unlockItems(itemStore.all.map(i => i.id));
@@ -120,6 +127,15 @@ export class DealStore {
     selectedGivingItems: IItem[],
     dealType: 'DIRECT' | 'CHAIN' = 'DIRECT'
   ): Promise<IExchangeDeal> => {
+    // Backend integration example:
+    // const response = await apiClient.post<IExchangeDeal>('/v1/deals', {
+    //   initiatorId,
+    //   targetItemId: targetItem.id,
+    //   selectedGivingItemIds: selectedGivingItems.map(i => i.id),
+    //   dealType,
+    // });
+    // const newDeal = response.data;
+    // return newDeal;
     this.isLoading = true;
 
     await new Promise(r => setTimeout(r, 500));
@@ -228,6 +244,9 @@ export class DealStore {
     const deal = this.deals.find(d => d.id === dealId);
     if (!deal) return;
 
+    // Backend integration example:
+    // await apiClient.post(`/v1/deals/${dealId}/confirm`);
+
     runInAction(() => {
       deal.status = DealStatusEnum.ACTIVE;
       deal.chain.forEach(link => {
@@ -244,6 +263,9 @@ export class DealStore {
   cancelDeal = (dealId: string, reason?: string): void => {
     const deal = this.deals.find(d => d.id === dealId);
     if (!deal) return;
+
+    // Backend integration example:
+    // await apiClient.post(`/v1/deals/${dealId}/cancel`, { reason });
 
     runInAction(() => {
       deal.status = DealStatusEnum.CANCELLED;
